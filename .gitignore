@@ -1,0 +1,21 @@
+# Godot
+.godot/
+*.translation
+export.cfg
+export_credentials.cfg
+*.tmp
+
+# Builds
+build/
+*.apk
+*.aab
+*.idx
+*.keystore
+*.jks
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android Gradle build template (installed by CI)
+/android/

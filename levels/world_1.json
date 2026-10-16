@@ -1,0 +1,28 @@
+{
+  "world": 1,
+  "name": "Lifting",
+  "mode": "lifting",
+  "palette": ["#efe4cc","#2e4a7d","#b8433a","#e0a537","#5f8a6a"],
+  "levels": [
+    {"id":"1-1","kind":"tutorial","mode":"lifting","name":"First Lift","shafts":2,"solution":{"lifts":[1],"threading":[0,1,0,1]},"tutorial":"tap","warp":[1,1,1,1],"weft":[0]},
+    {"id":"1-2","kind":"tutorial","mode":"lifting","name":"Two Rows","shafts":2,"solution":{"lifts":[1,2],"threading":[0,1,0,1]},"tutorial":"rows","warp":[1,1,1,1],"weft":[0,0]},
+    {"id":"1-3","kind":"tutorial","mode":"lifting","name":"Stripes","shafts":2,"solution":{"lifts":[1,3,2,0],"threading":[0,0,1,1]},"tutorial":"match","warp":[2,2,2,2],"weft":[0,0,0,0]},
+    {"id":"1-4","kind":"tutorial","mode":"lifting","name":"Third Shaft","shafts":3,"solution":{"lifts":[1,2,4],"threading":[0,1,2,0,1,2]},"tutorial":"shaft","warp":[1,1,1,1,1,1],"weft":[0,0,0]},
+    {"id":"1-5","kind":"tutorial","mode":"threading","name":"Tie a Thread","shafts":2,"solution":{"lifts":[1,2,1,2],"threading":[0,1,0,1]},"start":{"threading":[0,1,0,-1]},"tutorial":"drag","warp":[1,1,1,1],"weft":[3,3,3,3]},
+    {"id":"1-6","kind":"normal","mode":"lifting","name":"Plain Weave","shafts":2,"solution":{"lifts":[1,2,1,2],"threading":[0,1,0,1]},"warp":[3,3,4,3],"weft":[0,0,0,0]},
+    {"id":"1-7","kind":"normal","mode":"lifting","name":"Monk's Belt","shafts":2,"solution":{"lifts":[1,1,2,2],"threading":[0,0,1,1]},"warp":[1,1,4,1],"weft":[0,3,3,3]},
+    {"id":"1-8","kind":"normal","mode":"lifting","name":"Tabby","shafts":2,"solution":{"lifts":[1,2,1,2],"threading":[0,1,0,1,0]},"warp":[2,2,2,2,2],"weft":[1,0,0,0]},
+    {"id":"1-9","kind":"normal","mode":"lifting","name":"Border","shafts":2,"solution":{"lifts":[1,2,2,2,2],"threading":[0,1,1,1,0]},"warp":[3,0,0,0,0],"weft":[2,2,2,2,2]},
+    {"id":"1-10","kind":"showpiece","mode":"lifting","name":"Blocks","shafts":2,"solution":{"lifts":[1,1,2,2,1,1],"threading":[0,0,1,1,0,0]},"warp":[0,0,1,1,0,0],"weft":[2,2,4,4,2,2]},
+    {"id":"1-11","kind":"normal","mode":"lifting","name":"Diamond","shafts":3,"solution":{"lifts":[6,5,3,5,6],"threading":[0,1,2,1,0]},"warp":[2,2,1,1,2],"weft":[3,3,4,3,3]},
+    {"id":"1-12","kind":"normal","mode":"lifting","name":"Goose Eye","shafts":3,"solution":{"lifts":[6,5,3,5,6],"threading":[0,1,2,1,0]},"warp":[1,1,1,1,1],"weft":[0,2,2,2,2]},
+    {"id":"1-13","kind":"normal","mode":"lifting","name":"Bird's Eye","shafts":3,"solution":{"lifts":[6,5,3,5,6],"threading":[0,1,2,1,0,1]},"warp":[0,0,4,0,0,4],"weft":[1,1,1,1,1]},
+    {"id":"1-14","kind":"normal","mode":"lifting","name":"Squares","shafts":3,"solution":{"lifts":[5,1,3,3,4,4],"threading":[0,0,1,1,1,2]},"warp":[3,3,3,3,3,3],"weft":[0,0,0,0,0,0]},
+    {"id":"1-15","kind":"breather","mode":"lifting","name":"Sampler","shafts":3,"solution":{"lifts":[5,5,2,2],"threading":[2,1,0,0]},"warp":[0,0,2,0],"weft":[3,3,3,3]},
+    {"id":"1-16","kind":"normal","mode":"lifting","name":"Rosepath","shafts":3,"solution":{"lifts":[6,5,3,5,4,4],"threading":[0,1,2,1,0,1]},"warp":[1,1,3,1,1,3],"weft":[0,0,0,0,0,0]},
+    {"id":"1-17","kind":"normal","mode":"lifting","name":"Twill","shafts":3,"solution":{"lifts":[6,5,3,1,5,3],"threading":[0,1,2,0,1,2]},"warp":[1,1,1,1,1,1],"weft":[2,0,0,0,0,0]},
+    {"id":"1-18","kind":"normal","mode":"lifting","name":"Tiles","shafts":3,"solution":{"lifts":[1,1,2,3,4,6],"threading":[0,0,1,1,2,2]},"warp":[1,1,2,1,1,2],"weft":[0,0,0,0,0,0]},
+    {"id":"1-19","kind":"normal","mode":"lifting","name":"Broken Twill","shafts":3,"solution":{"lifts":[1,2,6,1,5,4],"threading":[0,1,2,1,2,0]},"warp":[3,3,3,3,3,3],"weft":[2,2,4,4,2,2]},
+    {"id":"1-20","kind":"showpiece","mode":"lifting","name":"Lozenge","shafts":3,"solution":{"lifts":[6,5,3,5,6,5],"threading":[0,1,2,1,0,1]},"warp":[1,1,0,0,1,1],"weft":[4,4,4,4,4,4]}
+  ]
+}

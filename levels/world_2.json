@@ -1,0 +1,28 @@
+{
+  "world": 2,
+  "name": "Threading",
+  "mode": "threading",
+  "palette": ["#ece0c8","#3b5b4a","#c26a3d","#6d4c7d","#d9b44a"],
+  "levels": [
+    {"id":"2-1","kind":"normal","mode":"threading","name":"Scrap","shafts":3,"solution":{"lifts":[1,1,2,6,6,2],"threading":[2,0,1,0,0,1]},"warp":[2,2,2,2,2,2],"weft":[1,1,3,1,1,3]},
+    {"id":"2-2","kind":"normal","mode":"threading","name":"Selvedge","shafts":3,"solution":{"lifts":[1,3,4,3,4,1],"threading":[0,1,2,1,2,0]},"warp":[1,1,3,1,1,3],"weft":[2,2,0,0,2,2]},
+    {"id":"2-3","kind":"normal","mode":"threading","name":"Patchwork","shafts":3,"solution":{"lifts":[6,2,2,5,2,5],"threading":[1,2,1,2,1,0]},"warp":[2,2,2,2,2,2],"weft":[3,3,3,3,3,3]},
+    {"id":"2-4","kind":"normal","mode":"threading","name":"Crow's Foot","shafts":3,"solution":{"lifts":[1,2,4,2,5,4],"threading":[0,1,1,1,2,0,0]},"warp":[4,2,2,2,2,2,2],"weft":[1,3,3,3,3,3]},
+    {"id":"2-5","kind":"breather","mode":"threading","name":"Zigzag","shafts":3,"solution":{"lifts":[1,2,4,2,1,2],"threading":[0,1,2,1,0,1]},"warp":[2,2,4,4,2,2],"weft":[0,0,0,0,0,0]},
+    {"id":"2-6","kind":"normal","mode":"threading","name":"Bricks","shafts":3,"solution":{"lifts":[1,0,3,3,4,4],"threading":[0,0,0,1,1,1,2]},"warp":[3,3,0,0,3,3,0],"weft":[4,4,4,4,4,4]},
+    {"id":"2-7","kind":"normal","mode":"threading","name":"Star","shafts":3,"solution":{"lifts":[6,5,3,5,6,5,3],"threading":[0,1,2,1,0,1,2]},"warp":[3,3,2,3,3,2,3],"weft":[0,0,0,0,0,0,0]},
+    {"id":"2-8","kind":"normal","mode":"threading","name":"Rose","shafts":3,"solution":{"lifts":[6,5,3,5,6,5,3],"threading":[0,1,2,1,0,1,2]},"warp":[1,1,3,3,1,1,3],"weft":[0,0,0,0,0,0,0]},
+    {"id":"2-9","kind":"normal","mode":"threading","name":"Snowflake","shafts":3,"solution":{"lifts":[6,5,3,5,6,5,3],"threading":[0,1,2,2,0,1,2,1]},"warp":[4,4,0,4,4,0,4,4],"weft":[3,3,1,3,3,1,3]},
+    {"id":"2-10","kind":"showpiece","mode":"threading","name":"Lantern","shafts":3,"solution":{"lifts":[6,5,3,5,6,5,3,5],"threading":[0,1,2,1,0,1,2,1]},"warp":[2,2,4,2,2,4,2,2],"weft":[1,1,0,0,0,0,1,1]},
+    {"id":"2-11","kind":"normal","mode":"threading","name":"Compass","shafts":3,"solution":{"lifts":[6,5,3,5,6,5,3],"threading":[0,1,2,1,0,1,2,1]},"warp":[2,2,0,2,2,0,2,2],"weft":[1,1,1,1,1,1,1]},
+    {"id":"2-12","kind":"normal","mode":"threading","name":"Serge","shafts":3,"solution":{"lifts":[1,5,3,1,2,4,1,2],"threading":[0,1,2,0,1,2,0,1]},"warp":[4,4,1,4,4,1,4,4],"weft":[3,3,0,0,3,3,0,0]},
+    {"id":"2-13","kind":"normal","mode":"threading","name":"Tweed","shafts":3,"solution":{"lifts":[3,6,4,5,3,5,4,6],"threading":[1,2,1,2,0,1,0,1]},"warp":[0,0,1,1,0,0,1,1],"weft":[4,4,4,4,4,4,4,4]},
+    {"id":"2-14","kind":"normal","mode":"threading","name":"Kilim","shafts":3,"solution":{"lifts":[6,2,4,1,4,6,3,4],"threading":[0,0,2,2,2,0,1,0]},"warp":[3,3,4,4,3,3,4,4],"weft":[0,0,0,0,0,0,0,0]},
+    {"id":"2-15","kind":"breather","mode":"threading","name":"Chevron","shafts":3,"solution":{"lifts":[1,2,4,2,1,2],"threading":[0,1,2,1,0,1]},"warp":[1,1,2,2,1,1],"weft":[4,4,4,4,4,4]},
+    {"id":"2-16","kind":"normal","mode":"threading","name":"Weaver's Note","shafts":3,"solution":{"lifts":[6,5,3,5,6,5,1,5],"threading":[0,1,2,1,0,1,2,1]},"warp":[3,3,0,3,3,0,3,3],"weft":[4,4,4,4,4,4,4,4]},
+    {"id":"2-17","kind":"normal","mode":"threading","name":"Remnant","shafts":3,"solution":{"lifts":[5,4,1,1,4,3,5,6],"threading":[1,2,2,2,0,1,2,2]},"warp":[0,0,1,1,0,0,1,1],"weft":[3,3,3,3,3,3,3,3]},
+    {"id":"2-18","kind":"normal","mode":"threading","name":"Drill","shafts":3,"solution":{"lifts":[1,2,4,0,5,0,6,5],"threading":[0,1,2,0,1,2,0,1]},"warp":[4,4,2,4,4,2,4,4],"weft":[1,1,3,1,1,3,1,1]},
+    {"id":"2-19","kind":"normal","mode":"threading","name":"Denim","shafts":3,"solution":{"lifts":[6,2,3,6,2,3,1,5],"threading":[0,1,2,0,1,2,0,1]},"warp":[0,0,3,3,0,0,3,3],"weft":[2,2,2,2,2,2,2,2]},
+    {"id":"2-20","kind":"showpiece","mode":"threading","name":"Fancy","shafts":3,"solution":{"lifts":[6,5,3,5,6,5,3,5],"threading":[0,1,2,1,0,1,2,1]},"warp":[3,0,0,0,0,0,0,3],"weft":[4,4,2,4,4,2,4,4]}
+  ]
+}

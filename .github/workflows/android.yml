@@ -1,0 +1,201 @@
+name: Android
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.7.2"
+  PACKAGE: com.dionysisath.loom
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-editor-${{ env.GODOT_VERSION }}
+
+      - name: Install Godot
+        run: ci/install_godot.sh
+
+      - name: Import project
+        run: ci/godot.sh --import
+
+      - name: Unit tests
+        run: ci/godot.sh --script res://tests/run_tests.gd
+
+      - name: Smoke test (menus, input, a level of each mode)
+        run: ci/godot.sh --script res://tests/smoke_test.gd
+
+      - name: Screenshots
+        continue-on-error: true
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri > /dev/null
+          timeout 300 xvfb-run -a -s "-screen 0 1280x1400x24" \
+            godot --path . --resolution 720x1280 --audio-driver Dummy \
+            --script res://tests/smoke_test.gd -- --shots="$PWD/screenshots"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/
+          if-no-files-found: ignore
+
+  build-apk:
+    name: Build debug APK
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Godot and export templates
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-android-${{ env.GODOT_VERSION }}
+
+      - name: Install Godot and Android templates
+        run: ci/install_godot.sh --templates
+
+      - name: Configure Android SDK, JDK and debug keystore
+        run: ci/setup_android_export.sh
+
+      - name: Import project
+        run: ci/godot.sh --import
+
+      - name: Export debug APK
+        run: |
+          mkdir -p build/android
+          ci/godot.sh --export-debug "Android" build/android/loom-debug.apk
+          test -s build/android/loom-debug.apk
+          ls -la build/android
+          unzip -l build/android/loom-debug.apk | grep -E "lib/.*\.so|\.pck" || true
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: loom-debug-apk
+          path: build/android/loom-debug.apk
+          if-no-files-found: error
+
+  emulator:
+    name: Emulator boot test (API ${{ matrix.api-level }})
+    needs: build-apk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [29, 34]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: loom-debug-apk
+          path: build/android
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Launch on emulator and check for crashes
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          force-avd-creation: true
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: ci/emulator_smoke.sh build/android/loom-debug.apk emulator-results/api-${{ matrix.api-level }}
+
+      - name: Upload logs and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-results-api-${{ matrix.api-level }}
+          path: emulator-results/
+          if-no-files-found: ignore
+
+  build-aab:
+    name: Build release AAB
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Godot and export templates
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-android-${{ env.GODOT_VERSION }}
+
+      - name: Install Godot and Android templates
+        run: ci/install_godot.sh --templates
+
+      - name: Configure Android SDK, JDK and debug keystore
+        run: ci/setup_android_export.sh
+
+      - name: Release signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: ci/release_keystore.sh
+
+      - name: Version code from run number
+        run: sed -i "s/^version\/code=1$/version\/code=${{ github.run_number }}/" export_presets.cfg
+
+      - name: Import project
+        run: ci/godot.sh --import
+
+      - name: Export release AAB (Gradle build)
+        run: |
+          mkdir -p build/android
+          ci/godot.sh --install-android-build-template --export-release "Android AAB" build/android/loom-release.aab
+          test -s build/android/loom-release.aab
+          ls -la build/android
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: loom-release-aab
+          path: build/android/loom-release.aab
+          if-no-files-found: error
