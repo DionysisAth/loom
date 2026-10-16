@@ -59,9 +59,16 @@ adb install -r -g "$APK"
 adb logcat -c
 adb logcat -c -b crash || true
 
-echo "Launching $PKG"
+# Start the launcher activity directly. (`monkey -p PKG 1` also sends one
+# random event, which can be Back and close the app before it boots.)
+ACTIVITY="$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$PKG" | tr -d '\r' | tail -1)"
+case "$ACTIVITY" in
+  "$PKG"/*) ;;
+  *) echo "::error::Could not find the launcher activity of $PKG (got: $ACTIVITY)"; exit 1 ;;
+esac
+echo "Launching $ACTIVITY"
 START=$(date +%s)
-adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 > /dev/null 2>&1
+adb shell am start -W -n "$ACTIVITY" -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
 
 booted=0
 for _ in $(seq 1 "$BOOT_TIMEOUT"); do
