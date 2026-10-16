@@ -97,9 +97,11 @@ if ! grep -E "mCurrentFocus|mFocusedApp" "$OUT/window.txt" | grep -q "$PKG"; the
 fi
 screenshot startup
 
-# Random taps and swipes through menus and levels (no system keys, no app switching).
+# Random taps and swipes through menus and levels. No system keys, app
+# switching or "major nav" keys: those include Back, and Back on the main menu
+# quits the app on purpose, which would look like a crash.
 echo "Running monkey"
-adb shell monkey -p "$PKG" --pct-syskeys 0 --pct-appswitch 0 --pct-anyevent 0 \
+adb shell monkey -p "$PKG" --pct-syskeys 0 --pct-appswitch 0 --pct-anyevent 0 --pct-majornav 0 \
   --throttle 120 -s 42 -v 600 > "$OUT/monkey.txt" 2>&1 || true
 tail -5 "$OUT/monkey.txt"
 if grep -qE "// CRASH|// NOT RESPONDING|Monkey aborted" "$OUT/monkey.txt"; then
@@ -109,6 +111,6 @@ if grep -qE "// CRASH|// NOT RESPONDING|Monkey aborted" "$OUT/monkey.txt"; then
 fi
 sleep 3
 screenshot after-monkey
-alive_check "monkey"
 crash_check "monkey"
+alive_check "monkey"
 echo "Emulator smoke test passed"
