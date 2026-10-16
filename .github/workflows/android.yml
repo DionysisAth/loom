@@ -199,3 +199,28 @@ jobs:
           name: loom-release-aab
           path: build/android/loom-release.aab
           if-no-files-found: error
+
+  publish-apk:
+    name: Publish APK download
+    needs: [build-apk, emulator]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: loom-debug-apk
+          path: build/android
+
+      - name: Replace the latest-debug release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release delete latest-debug --repo "$REPO" --cleanup-tag --yes || true
+          gh release create latest-debug build/android/loom-debug.apk \
+            --repo "$REPO" --target "$GITHUB_SHA" --prerelease \
+            --title "Latest debug build" \
+            --notes "Debug APK from ${GITHUB_SHA::7}, built and emulator-tested by CI run ${{ github.run_number }}. Direct download: https://github.com/$REPO/releases/download/latest-debug/loom-debug.apk"
