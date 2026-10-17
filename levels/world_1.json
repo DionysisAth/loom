@@ -2,7 +2,7 @@
   "world": 1,
   "name": "Lifting",
   "mode": "lifting",
-  "palette": ["#efe4cc","#2e4a7d","#b8433a","#e0a537","#5f8a6a"],
+  "palette": ["#fff4dc","#3a86ff","#ff4d6d","#ffbe0b","#06c793"],
   "levels": [
     {"id":"1-1","kind":"tutorial","mode":"lifting","name":"First Lift","shafts":2,"solution":{"lifts":[1],"threading":[0,1,0,1]},"tutorial":"tap","warp":[1,1,1,1],"weft":[0]},
     {"id":"1-2","kind":"tutorial","mode":"lifting","name":"Two Rows","shafts":2,"solution":{"lifts":[1,2],"threading":[0,1,0,1]},"tutorial":"rows","warp":[1,1,1,1],"weft":[0,0]},

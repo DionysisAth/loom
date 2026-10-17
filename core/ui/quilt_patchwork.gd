@@ -51,17 +51,17 @@ func _layout() -> void:
 
 func _draw() -> void:
 	var p := _patch()
-	var rect := Rect2(Vector2.ZERO, Vector2(p * _columns + 24.0, p * _rows() + 24.0))
-	draw_style_box(LoomTheme.box(LoomTheme.WOOD, 14), rect)
+	var rect := Rect2(Vector2(12, 12), Vector2(p * _columns, p * _rows()))
+	ThreadTextures.draw_frame(self, rect, 10.0)
 	for i in _patches.size():
 		var cell := Rect2(Vector2(12 + (i % _columns) * p, 12 + (i / _columns) * p), Vector2(p, p))
-		draw_rect(cell.grow(-2), LoomTheme.BG_DEEP if _empty[i] else ThreadTextures.GAP_COLOR)
+		draw_rect(cell.grow(-2), Color("#fde8ee") if _empty[i] else Color("#fff7ea"))
 		if _empty[i]:
 			_stitches(cell.grow(-10))
 
 
 func _stitches(r: Rect2) -> void:
-	var col := LoomTheme.INK_SOFT.lerp(LoomTheme.BG_DEEP, 0.4)
+	var col := Color("#f3a9be")
 	var dash := 8.0
 	var corners := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
 	for k in 4:
@@ -71,4 +71,4 @@ func _stitches(r: Rect2) -> void:
 		for j in n:
 			var t0 := float(j * 2) / (n * 2)
 			var t1 := float(j * 2 + 1) / (n * 2)
-			draw_line(a.lerp(b, t0), a.lerp(b, t1), col, 2.0)
+			draw_line(a.lerp(b, t0), a.lerp(b, t1), col, 3.0, true)

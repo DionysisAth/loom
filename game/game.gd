@@ -6,10 +6,10 @@ const LEVEL_SELECT := "res://core/ui/level_select.tscn"
 const MAIN_MENU := "res://core/ui/main_menu.tscn"
 const MODE_NAMES := {"lifting": "Lifting", "threading": "Threading", "full": "Full Loom"}
 const CAPTIONS := {
-	"tap": "Tap a switch to lift its threads",
-	"rows": "Every row has its own switches",
-	"match": "Weave the cloth to match the target",
-	"shaft": "A third shaft lifts other threads",
+	"tap": "Tap the cloth to lift a thread",
+	"rows": "Each row lifts on its own",
+	"match": "The dots show what still needs to change",
+	"shaft": "Threads on the same shaft lift together",
 	"drag": "Drag the loose thread onto a shaft",
 }
 
@@ -35,6 +35,7 @@ var _undos := 0
 var _hints := 0
 var _moves := 0
 var _started_ms := 0
+var _matched_rows := 0
 
 
 func build() -> void:
@@ -47,57 +48,79 @@ func build() -> void:
 
 	# Top bar: menu, title, hint, undo, restart.
 	var bar := HBoxContainer.new()
-	var menu := IconButton.new("menu")
+	var menu := IconButton.new("menu", LoomTheme.INK)
 	menu.pressed.connect(_open_pause)
 	bar.add_child(menu)
 	var titles := VBoxContainer.new()
 	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	titles.add_theme_constant_override("separation", 0)
-	var number := Label.new()
-	number.text = "%s  ·  %s" % [level.id, MODE_NAMES.get(level.mode, "")]
-	number.theme_type_variation = &"SoftLabel"
-	titles.add_child(number)
+	titles.alignment = BoxContainer.ALIGNMENT_CENTER
+	titles.add_theme_constant_override("separation", 2)
+	var chip := Chip.new("%s  ·  %s" % [level.id, MODE_NAMES.get(level.mode, "")],
+			LoomTheme.world_color(level.world_index))
+	titles.add_child(chip)
 	_title = Label.new()
 	_title.text = level.name
-	_title.add_theme_font_size_override("font_size", 34)
+	_title.add_theme_font_override("font", LoomTheme.font(650))
+	_title.add_theme_font_size_override("font_size", 36)
 	_title.clip_text = true
 	titles.add_child(_title)
 	bar.add_child(titles)
-	_hint_btn = IconButton.new("hint")
+	_hint_btn = IconButton.new("hint", LoomTheme.SUN_DARK)
 	_hint_btn.pressed.connect(_on_hint)
 	bar.add_child(_hint_btn)
-	_undo_btn = IconButton.new("undo")
+	_undo_btn = IconButton.new("undo", LoomTheme.SKY)
 	_undo_btn.pressed.connect(_on_undo)
 	bar.add_child(_undo_btn)
-	_restart_btn = IconButton.new("restart")
+	_restart_btn = IconButton.new("restart", LoomTheme.ACCENT)
 	_restart_btn.pressed.connect(_on_restart)
 	bar.add_child(_restart_btn)
 	content.add_child(bar)
 
-	# Target swatch.
-	var target_box := CenterContainer.new()
-	target_box.custom_minimum_size = Vector2(0, 230)
+	# Target card: hold it to lay the target over the cloth.
+	var target_row := HBoxContainer.new()
+	target_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	target_row.add_theme_constant_override("separation", 22)
 	target.show_level(level, palette, false)
 	target.colorblind = colorblind
+	target.holdable = true
+	target.hold_changed.connect(_on_compare)
 	var aspect := target.aspect()
-	var th := 200.0 if aspect <= 1.6 else 200.0 * 1.6 / aspect
-	target.custom_minimum_size = Vector2(th * aspect, th)
-	target_box.add_child(target)
-	content.add_child(target_box)
+	var th := 210.0 if aspect <= 1.6 else 210.0 * 1.6 / aspect
+	target.custom_minimum_size = Vector2(th * aspect, th) + Vector2(24, 24)
+	var labels := VBoxContainer.new()
+	labels.alignment = BoxContainer.ALIGNMENT_CENTER
+	labels.add_theme_constant_override("separation", 4)
+	var goal := Label.new()
+	goal.text = "Target"
+	goal.add_theme_font_override("font", LoomTheme.font(650))
+	goal.add_theme_font_size_override("font_size", 34)
+	labels.add_child(goal)
+	var hold := Label.new()
+	hold.text = "Hold it to\ncompare"
+	hold.theme_type_variation = &"SoftLabel"
+	hold.add_theme_font_size_override("font_size", 22)
+	labels.add_child(hold)
+	target_row.add_child(labels)
+	target_row.add_child(target)
+	content.add_child(target_row)
 
 	_caption = Label.new()
 	_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_caption.theme_type_variation = &"SoftLabel"
-	_caption.add_theme_font_size_override("font_size", 28)
+	_caption.add_theme_font_override("font", LoomTheme.font(600))
+	_caption.add_theme_color_override("font_color", LoomTheme.ACCENT_DARK)
+	_caption.add_theme_font_size_override("font_size", 30)
 	_caption.text = CAPTIONS.get(level.tutorial, "")
 	_caption.visible = not _caption.text.is_empty()
 	content.add_child(_caption)
 
 	board.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	board.setup(state, palette, colorblind)
+	board.view.show_mismatch = Save.get_setting("mismatch")
+	_matched_rows = _rows_matched()
 	board.lift_toggled.connect(_on_lift)
 	board.warp_threaded.connect(_on_thread)
+	board.untied_tapped.connect(func(_c): Audio.play("tap", 0.05, -8.0); Haptics.tap())
 	content.add_child(board)
 
 	add_child(pointer)
@@ -182,6 +205,7 @@ func _on_hint() -> void:
 func _after_move() -> void:
 	_moves += 1
 	_update_buttons()
+	_reward_rows()
 	if state.matches_target():
 		_win()
 	else:
@@ -193,6 +217,29 @@ func _update_buttons() -> void:
 	_undo_btn.set_disabled_state(not can)
 	_restart_btn.set_disabled_state(not can)
 	_hint_btn.set_disabled_state(_won)
+
+
+## A soft click and buzz whenever another row comes right.
+func _reward_rows() -> void:
+	var n := _rows_matched()
+	if n > _matched_rows and not state.matches_target():
+		Audio.play("tap", 0.02, -2.0)
+		Haptics.snap()
+	_matched_rows = n
+
+
+func _rows_matched() -> int:
+	var n := 0
+	for r in state.height:
+		if state.row_matches(r):
+			n += 1
+	return n
+
+
+func _on_compare(held: bool) -> void:
+	board.view.compare = held
+	if held:
+		Audio.play("tap", 0.03, -8.0)
 
 
 func stars() -> int:
@@ -209,13 +256,27 @@ func _update_tutorial() -> void:
 	if move.is_empty():
 		pointer.clear()
 	elif move.kind == "lift":
-		pointer.point_tap(board.lift_rect(move.row, move.shaft))
+		pointer.point_tap(board.crossing_rect(_crossing_for(move.row, move.shaft), move.row))
 	else:
 		var from := board.slot_rect(move.col, maxi(state.threading[move.col], 0))
 		if state.threading[move.col] < 0:
 			# The loose end hangs at the top of the threading.
 			from.size.y *= 0.5
 		pointer.point_drag(from, board.slot_rect(move.col, move.shaft))
+
+
+## A crossing on the given shaft in a row to point the tutorial at,
+## preferring one that does not match the target yet.
+func _crossing_for(r: int, shaft: int) -> int:
+	var first := -1
+	for c in state.width:
+		if state.threading[c] != shaft:
+			continue
+		if first < 0:
+			first = c
+		if not state.cell_matches(c, r):
+			return c
+	return maxi(first, 0)
 
 
 func _win() -> void:
@@ -250,6 +311,7 @@ func _open_pause() -> void:
 
 func _on_settings_changed() -> void:
 	var cb: bool = Save.get_setting("colorblind")
+	board.view.show_mismatch = Save.get_setting("mismatch")
 	board.set_colorblind(cb)
 	target.colorblind = cb
 	target.queue_redraw()

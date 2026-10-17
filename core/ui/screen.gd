@@ -14,11 +14,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	var bg := ColorRect.new()
-	bg.color = LoomTheme.BG
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
+	add_child(Backdrop.new())
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
@@ -53,7 +49,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## A row with a back button and a title.
 func add_header(title: String) -> HBoxContainer:
 	var bar := HBoxContainer.new()
-	var back := IconButton.new("back")
+	var back := IconButton.new("back", LoomTheme.ACCENT)
 	back.pressed.connect(go_back)
 	bar.add_child(back)
 	var label := Label.new()

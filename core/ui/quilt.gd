@@ -21,6 +21,9 @@ func build() -> void:
 				done += 1
 		var label := Label.new()
 		label.text = "%s  ·  %d / %d" % [world.name, done, world.levels.size()]
+		label.add_theme_font_override("font", LoomTheme.font(650))
+		label.add_theme_font_size_override("font_size", 34)
+		label.add_theme_color_override("font_color", LoomTheme.world_color(world.world - 1))
 		list.add_child(label)
 		var quilt := QuiltPatchwork.new()
 		quilt.setup(world, COLUMNS)

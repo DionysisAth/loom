@@ -5,15 +5,19 @@ extends Screen
 const TOGGLES := [
 	["sound", "Sound"],
 	["haptics", "Vibration"],
+	["mismatch", "Show mismatch dots"],
 	["colorblind", "Colourblind threads"],
 ]
 
 
 func build() -> void:
 	add_header("Settings")
+	var card := PanelContainer.new()
+	content.add_child(card)
 	var list := VBoxContainer.new()
-	list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(list)
+	card.add_child(list)
+	var spacer_end := Control.new()
+	spacer_end.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_toggles(list)
 	var note := Label.new()
 	note.text = "Colourblind threads add a texture to every thread colour."
@@ -26,8 +30,10 @@ func build() -> void:
 	var reset := Button.new()
 	reset.text = "Reset progress"
 	reset.custom_minimum_size = Vector2(0, 96)
+	reset.theme_type_variation = &"PrimaryButton"
 	reset.pressed.connect(_confirm_reset)
 	list.add_child(reset)
+	content.add_child(spacer_end)
 	var version := Label.new()
 	version.text = "Loom %s · progress and stats stay on this device" % \
 			ProjectSettings.get_setting("application/config/version")

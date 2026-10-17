@@ -4,18 +4,22 @@ extends RefCounted
 ##
 ## Each crossing is one short thread segment: vertical when the warp is on top,
 ## horizontal when the weft is, tinted to the thread colour, with a soft shadow
-## on the thread underneath. Segments darken at an end only where the thread
-## dives under its neighbour, so floats read as one continuous thread.
+## on the thread underneath and a glossy highlight along the yarn. Segments
+## darken at an end only where the thread dives under its neighbour, so floats
+## read as one continuous thread.
 
 const SEG_W := 48
 const SEG_L := 96
 ## Thread width as a share of the cell.
-const THREAD := 0.84
-const UNDER_SHADE := 0.68
-const GAP_COLOR := Color(0.16, 0.11, 0.08)
+const THREAD := 0.86
+## How much the thread underneath is darkened.
+const UNDER_SHADE := 0.8
+const GAP_COLOR := Color("#8c5c45")
 
 static var _vertical: Texture2D
 static var _horizontal: Texture2D
+static var _gloss_v: Texture2D
+static var _gloss_h: Texture2D
 static var _end_shade: Texture2D
 static var _patterns: Array[Texture2D] = []
 
@@ -41,26 +45,35 @@ static func pattern(color_id: int) -> Texture2D:
 
 static func _build() -> void:
 	var img := Image.create(SEG_W, SEG_L, false, Image.FORMAT_RGBA8)
+	var gloss := Image.create(SEG_W, SEG_L, false, Image.FORMAT_RGBA8)
 	for y in SEG_L:
 		for x in SEG_W:
 			var u := (x + 0.5) / SEG_W
 			var profile := sin(PI * u)
-			var b := 0.52 + 0.48 * pow(profile, 0.6)
+			# Bright yarn: only the very edges roll into shade.
+			var b := 0.74 + 0.26 * pow(profile, 0.45)
 			# Yarn twist: faint diagonal ridges.
-			b += 0.07 * sin((x * 0.55 + y * 0.85) * 1.3) * profile
+			b += 0.05 * sin((x * 0.55 + y * 0.85) * 1.3) * profile
 			b = clampf(b, 0.0, 1.0)
-			var a := clampf(profile * 7.0, 0.0, 1.0)
+			var a := clampf(profile * 9.0, 0.0, 1.0)
 			img.set_pixel(x, y, Color(b, b, b, a))
+			var g := exp(-pow((u - 0.34) / 0.11, 2.0)) * 0.55
+			g *= 0.8 + 0.2 * sin((x * 0.55 + y * 0.85) * 1.3)
+			gloss.set_pixel(x, y, Color(1, 1, 1, clampf(g, 0.0, 1.0)))
 	_vertical = ImageTexture.create_from_image(img)
+	_gloss_v = ImageTexture.create_from_image(gloss)
 	var h := img.duplicate()
 	h.rotate_90(CLOCKWISE)
 	_horizontal = ImageTexture.create_from_image(h)
+	var gh := gloss.duplicate()
+	gh.rotate_90(CLOCKWISE)
+	_gloss_h = ImageTexture.create_from_image(gh)
 
 	var shade := Image.create(SEG_W, SEG_W, false, Image.FORMAT_RGBA8)
 	for y in SEG_W:
 		for x in SEG_W:
 			var t := 1.0 - float(y) / SEG_W
-			shade.set_pixel(x, y, Color(0, 0, 0, 0.55 * t * t))
+			shade.set_pixel(x, y, Color(0.25, 0.08, 0.1, 0.42 * t * t))
 	_end_shade = ImageTexture.create_from_image(shade)
 
 	_patterns.clear()
@@ -94,7 +107,7 @@ static func _make_pattern(id: int) -> Texture2D:
 
 
 static func pattern_tint(base: Color) -> Color:
-	return Color(0, 0, 0, 0.42) if base.get_luminance() > 0.45 else Color(1, 1, 1, 0.45)
+	return Color(0.15, 0.05, 0.2, 0.4) if base.get_luminance() > 0.5 else Color(1, 1, 1, 0.5)
 
 
 ## Draws one crossing into `rect`.
@@ -110,28 +123,31 @@ static func draw_crossing(ci: CanvasItem, rect: Rect2, warp_top: bool, warp: Col
 	var under := weft if warp_top else warp
 	var top_id := warp_id if warp_top else weft_id
 	var under_id := weft_id if warp_top else warp_id
+	var dim := under.darkened(1.0 - UNDER_SHADE)
 	if warp_top:
 		var u := Rect2(rect.position.x, rect.position.y + inset, cell, tw)
-		ci.draw_texture_rect(horizontal(), u, false, under.darkened(1.0 - UNDER_SHADE))
+		ci.draw_texture_rect(horizontal(), u, false, dim)
 		draw_pattern(ci, u, under_id, under, colorblind, 0.6)
 		var w := tw * squash
-		var shadow := Rect2(rect.get_center().x - w * 0.5 - cell * 0.05, rect.position.y,
-				w + cell * 0.1, cell)
-		ci.draw_rect(shadow, Color(0, 0, 0, 0.22 * squash))
+		var shadow := Rect2(rect.get_center().x - w * 0.5 - cell * 0.04, rect.position.y,
+				w + cell * 0.08, cell)
+		ci.draw_rect(shadow, Color(0.3, 0.05, 0.15, 0.14 * squash))
 		var o := Rect2(rect.get_center().x - w * 0.5, rect.position.y, w, cell)
 		ci.draw_texture_rect(vertical(), o, false, top)
+		ci.draw_texture_rect(_gloss_v, o, false)
 		draw_pattern(ci, o, top_id, top, colorblind, 1.0)
 		_dives(ci, o, true, dive_a, dive_b)
 	else:
 		var u := Rect2(rect.position.x + inset, rect.position.y, tw, cell)
-		ci.draw_texture_rect(vertical(), u, false, under.darkened(1.0 - UNDER_SHADE))
+		ci.draw_texture_rect(vertical(), u, false, dim)
 		draw_pattern(ci, u, under_id, under, colorblind, 0.6)
 		var hgt := tw * squash
-		var shadow := Rect2(rect.position.x, rect.get_center().y - hgt * 0.5 - cell * 0.05,
-				cell, hgt + cell * 0.1)
-		ci.draw_rect(shadow, Color(0, 0, 0, 0.22 * squash))
+		var shadow := Rect2(rect.position.x, rect.get_center().y - hgt * 0.5 - cell * 0.04,
+				cell, hgt + cell * 0.08)
+		ci.draw_rect(shadow, Color(0.3, 0.05, 0.15, 0.14 * squash))
 		var o := Rect2(rect.position.x, rect.get_center().y - hgt * 0.5, cell, hgt)
 		ci.draw_texture_rect(horizontal(), o, false, top)
+		ci.draw_texture_rect(_gloss_h, o, false)
 		draw_pattern(ci, o, top_id, top, colorblind, 1.0)
 		_dives(ci, o, false, dive_a, dive_b)
 
@@ -147,11 +163,20 @@ static func draw_pattern(ci: CanvasItem, r: Rect2, id: int, base: Color, on: boo
 	ci.draw_texture_rect(tex, r, false, tint)
 
 
+## A short loose thread end (warp ends, weft bobbins, chips): tinted yarn
+## with gloss.
+static func draw_thread(ci: CanvasItem, r: Rect2, color: Color, is_vertical: bool,
+		colorblind := false, color_id := 0) -> void:
+	ci.draw_texture_rect(vertical() if is_vertical else horizontal(), r, false, color)
+	ci.draw_texture_rect(_gloss_v if is_vertical else _gloss_h, r, false)
+	draw_pattern(ci, r, color_id, color, colorblind, 1.0)
+
+
 ## Shade the ends of a top thread that dives under the next crossing.
 static func _dives(ci: CanvasItem, o: Rect2, is_vertical: bool, a: bool, b: bool) -> void:
 	if _end_shade == null:
 		_build()
-	var shade_len := (o.size.y if is_vertical else o.size.x) * 0.28
+	var shade_len := (o.size.y if is_vertical else o.size.x) * 0.26
 	if is_vertical:
 		if a:
 			ci.draw_texture_rect(_end_shade, Rect2(o.position.x, o.position.y, o.size.x, shade_len), false)
@@ -168,6 +193,27 @@ static func _dives(ci: CanvasItem, o: Rect2, is_vertical: bool, a: bool, b: bool
 			ci.draw_set_transform(Vector2(o.end.x, o.position.y), PI * 0.5, Vector2.ONE)
 			ci.draw_texture_rect(_end_shade, Rect2(0, 0, o.size.y, shade_len), false)
 			ci.draw_set_transform(Vector2.ZERO)
+
+
+## A honey-wood frame around a cloth rect.
+static func draw_frame(ci: CanvasItem, cloth: Rect2, thickness: float) -> void:
+	var outer := cloth.grow(thickness)
+	var lip := StyleBoxFlat.new()
+	lip.bg_color = LoomTheme.WOOD_DARK
+	lip.set_corner_radius_all(int(thickness * 1.2))
+	lip.anti_aliasing = true
+	lip.shadow_color = Color(0.55, 0.2, 0.3, 0.18)
+	lip.shadow_size = int(thickness)
+	lip.shadow_offset = Vector2(0, thickness * 0.5)
+	ci.draw_style_box(lip, Rect2(outer.position + Vector2(0, thickness * 0.35), outer.size))
+	var face := StyleBoxFlat.new()
+	face.bg_color = LoomTheme.WOOD
+	face.set_corner_radius_all(int(thickness * 1.2))
+	face.anti_aliasing = true
+	face.border_color = LoomTheme.WOOD_LIGHT
+	face.border_width_top = maxi(2, int(thickness * 0.25))
+	ci.draw_style_box(face, outer)
+	ci.draw_rect(cloth, GAP_COLOR)
 
 
 ## Draws a whole finished cloth (no animation) for swatches and the quilt.

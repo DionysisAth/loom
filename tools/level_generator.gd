@@ -15,9 +15,9 @@ const MAX_EITHER := 0.2
 const CANDIDATES := 400
 
 const PALETTES := [
-	["#efe4cc", "#2e4a7d", "#b8433a", "#e0a537", "#5f8a6a"],
-	["#ece0c8", "#3b5b4a", "#c26a3d", "#6d4c7d", "#d9b44a"],
-	["#f0e6d6", "#8c2f39", "#2f5d73", "#e3a857", "#40362f"],
+	["#fff4dc", "#3a86ff", "#ff4d6d", "#ffbe0b", "#06c793"],
+	["#fff0f6", "#8f5cf0", "#ff7a1a", "#00c2d1", "#ffd23f"],
+	["#f4fff8", "#ff3d7f", "#2f7dff", "#ffc93c", "#a24cf0"],
 ]
 const WORLD_NAMES := ["Lifting", "Threading", "Full Loom"]
 const MODES := ["lifting", "threading", "full"]

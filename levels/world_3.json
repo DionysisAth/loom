@@ -2,7 +2,7 @@
   "world": 3,
   "name": "Full Loom",
   "mode": "full",
-  "palette": ["#f0e6d6","#8c2f39","#2f5d73","#e3a857","#40362f"],
+  "palette": ["#f4fff8","#ff3d7f","#2f7dff","#ffc93c","#a24cf0"],
   "levels": [
     {"id":"3-1","kind":"normal","mode":"full","name":"Frame","shafts":2,"solution":{"lifts":[1,2,2,2,2,1],"threading":[0,1,1,1,1,0]},"warp":[4,4,1,1,4,4],"weft":[0,0,0,0,0,0]},
     {"id":"3-2","kind":"normal","mode":"full","name":"Homestead","shafts":2,"solution":{"lifts":[2,1,1,1,1,2],"threading":[0,0,0,0,1,0]},"warp":[3,1,1,1,1,1],"weft":[0,0,2,2,0,0]},

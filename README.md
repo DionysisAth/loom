@@ -12,6 +12,9 @@ otherwise the weft does. Match the target cloth.
 | Feature | State |
 | --- | --- |
 | Lift switches per row, ripple flip, win check | done |
+| Tap the cloth: flips that crossing's shaft in its row, with a press preview (slide off to cancel) | done |
+| Mismatch dots on crossings that differ from the target (can be turned off) | done |
+| Hold the target to lay it over the cloth | done |
 | Drag-to-thread warps onto shafts (tap also works) | done |
 | Unlimited undo and restart, stars (3 clean / 2 with undo / 1 with hint) | done |
 | Unlimited hints (set one row or one warp correctly) | done |
@@ -21,6 +24,7 @@ otherwise the weft does. Match the target cloth.
 | Colourblind mode (thread textures per colour) | done |
 | Quilt meta-progression (simple grid per world) | done |
 | Local save, local analytics log, synthesized sounds, haptics | done |
+| Bright look: Fredoka font, gradient backdrop, pill buttons, honey loom, confetti | done |
 | Ads, IAP, consent | v1.0, not in the MVP |
 
 ## Project layout
@@ -28,6 +32,7 @@ otherwise the weft does. Match the target cloth.
 ```
 core/autoload/   Save, Levels, Audio, Haptics, Analytics
 core/ui/         menus, level select, quilt, settings, win and pause panels, theme, icons
+fonts/           Fredoka (SIL Open Font License, see Fredoka-OFL.txt)
 core/undo/       Command, UndoStack
 game/            LoomState (pure data), LoomSolver, commands, board, cloth view, input
 levels/          world_1.json ... world_3.json (generated, committed)

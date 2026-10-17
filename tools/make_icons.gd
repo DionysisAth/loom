@@ -2,11 +2,11 @@ extends SceneTree
 ## Draws the launcher icons (a small woven cloth on dark wood) into art/.
 ## Usage: godot --headless --path . --script res://tools/make_icons.gd
 
-const WOOD := Color("#5b3a29")
-const GAP := Color("#2a1a12")
-const WARP := Color("#2e4a7d")
-const WEFT := Color("#efe4cc")
-const ACCENT := Color("#b8433a")
+const WOOD := Color("#ff5d73")
+const GAP := Color("#8c5c45")
+const WARP := Color("#3a86ff")
+const WEFT := Color("#fff4dc")
+const ACCENT := Color("#ffbe0b")
 
 
 func _initialize() -> void:
