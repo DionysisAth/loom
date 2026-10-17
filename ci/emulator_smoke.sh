@@ -87,7 +87,9 @@ if [ "$booted" -ne 1 ]; then
   screenshot startup-failed
   echo "::error::App did not reach the main menu within ${BOOT_TIMEOUT}s"
   crash_check "startup" || true
-  tail -150 "$OUT/logcat.txt"
+  echo "--- app and activity log lines ---"
+  grep -E "godot|GODOT|LOOM_|$PKG|GodotApp|ActivityTaskManager|ActivityManager: (Start|Kill|Process)|WindowManager: .*(loom|Godot)|AndroidRuntime|DEBUG   :" \
+    "$OUT/logcat.txt" | head -200 || true
   exit 1
 fi
 echo "Main menu up after $(( $(date +%s) - START ))s"

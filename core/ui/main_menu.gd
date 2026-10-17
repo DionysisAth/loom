@@ -7,7 +7,11 @@ const BOOT_MARKER := "LOOM_BOOT_OK"
 const TITLE_COLORS: Array[Color] = [Color("#ff5d73"), Color("#ffbe0b"), Color("#06c793"),
 		Color("#3a86ff")]
 
+const EXIT_WINDOW := 2.0
+
 static var _booted := false
+
+var _back_ms := -100000
 
 var _letters: Array[Label] = []
 var _swatch := Swatch.new()
@@ -120,5 +124,20 @@ func _showcase_level() -> int:
 	return best if best >= 0 else 0
 
 
+## Back once shows a hint; back again within EXIT_WINDOW seconds quits.
 func go_back() -> void:
-	get_tree().quit()
+	var now := Time.get_ticks_msec()
+	if now - _back_ms < EXIT_WINDOW * 1000.0:
+		print("LOOM_QUIT back twice on the main menu")
+		get_tree().quit()
+		return
+	_back_ms = now
+	var toast := Chip.new("Press back again to exit", LoomTheme.INK, 26)
+	toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(toast)
+	await get_tree().process_frame
+	toast.position = Vector2((size.x - toast.size.x) * 0.5, size.y - toast.size.y - 60)
+	var tw := create_tween()
+	tw.tween_interval(EXIT_WINDOW - 0.3)
+	tw.tween_property(toast, "modulate:a", 0.0, 0.3)
+	tw.tween_callback(toast.queue_free)

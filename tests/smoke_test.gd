@@ -200,6 +200,9 @@ func _run() -> void:
 	settings.go_back()
 	await _frames(4)
 	_check(current_scene.name == "MainMenu", "back returns to the menu")
+	current_scene.go_back()
+	await _frames(3)
+	_check(current_scene.name == "MainMenu", "one back on the menu only shows the exit hint")
 
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save.path))
 	print("%d smoke failures" % _failures.size())

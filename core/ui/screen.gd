@@ -37,11 +37,13 @@ func go_back() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		print("LOOM_BACK system back on ", name)
 		go_back()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
+		print("LOOM_BACK ui_cancel on ", name, ": ", event)
 		get_viewport().set_input_as_handled()
 		go_back()
 
