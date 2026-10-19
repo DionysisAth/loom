@@ -34,6 +34,9 @@ func load_data() -> void:
 	if typeof(parsed.get("levels")) == TYPE_DICTIONARY:
 		for id in parsed.levels:
 			data.levels[str(id)] = int(parsed.levels[id])
+	if typeof(parsed.get("proto")) == TYPE_DICTIONARY:
+		for id in parsed.proto:
+			data.proto[str(id)] = int(parsed.proto[id])
 	if typeof(parsed.get("settings")) == TYPE_DICTIONARY:
 		for key in DEFAULT_SETTINGS:
 			if parsed.settings.has(key):
@@ -49,7 +52,7 @@ func write() -> void:
 
 
 func _fresh() -> Dictionary:
-	return {"version": VERSION, "levels": {}, "settings": DEFAULT_SETTINGS.duplicate()}
+	return {"version": VERSION, "levels": {}, "proto": {}, "settings": DEFAULT_SETTINGS.duplicate()}
 
 
 func stars(level_id: String) -> int:
@@ -68,6 +71,16 @@ func record_win(level_id: String, star_count: int) -> bool:
 	write()
 	progress_changed.emit()
 	return improved
+
+
+## Prototype lab results, kept apart from the real levels.
+func proto_stars(id: String) -> int:
+	return int(data.proto.get(id, 0))
+
+
+func record_proto(id: String, star_count: int) -> void:
+	data.proto[id] = maxi(proto_stars(id), star_count)
+	write()
 
 
 func completed_count() -> int:

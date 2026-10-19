@@ -92,3 +92,16 @@ Add these repository secrets so the AAB is signed with your upload key:
 
 Without them the AAB is signed with a throwaway key: fine for checking the build,
 not uploadable to Google Play. Keep a backup of the upload key somewhere safe.
+
+## Prototype Lab (`proto/`)
+
+Two candidate new ways to play, reachable from the main menu ("Prototype Lab"),
+three levels each. They leave the main game untouched while we compare them.
+
+- **A · Weave it** (`proto/weave/`): the cloth grows row by row. Press a pedal
+  to lift its shafts (the lifted warps come forward), drag the shuttle through
+  the shed, and the beater packs the row. Wrong rows are marked; unpick the last
+  row to fix it. A3 has untied pedals: tap the A/B/C knobs to tie them.
+- **B · Thread it** (`proto/thread/`): drag each thread from its knot to its
+  twin. Threads cross only at marked crossings (one over, one under); fill every
+  cell to finish.

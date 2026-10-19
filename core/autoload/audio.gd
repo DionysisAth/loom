@@ -17,6 +17,7 @@ func _ready() -> void:
 	_sounds.swish = _wav(_swish())
 	_sounds.chime = _wav(_chime())
 	_sounds.tap = _wav(_tap())
+	_sounds.thud = _wav(_thud())
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -30,6 +31,18 @@ func play(sound: String, pitch_variation := 0.06, volume_db := 0.0) -> void:
 	_next = (_next + 1) % _players.size()
 	p.stream = _sounds[sound]
 	p.pitch_scale = 1.0 + randf_range(-pitch_variation, pitch_variation)
+	p.volume_db = volume_db
+	p.play()
+
+
+## Plays at an exact pitch (for rising note sequences).
+func play_at(sound: String, pitch: float, volume_db := 0.0) -> void:
+	if not Save.get_setting("sound") or not _sounds.has(sound):
+		return
+	var p := _players[_next]
+	_next = (_next + 1) % _players.size()
+	p.stream = _sounds[sound]
+	p.pitch_scale = pitch
 	p.volume_db = volume_db
 	p.play()
 
@@ -105,6 +118,18 @@ func _chime() -> PackedFloat32Array:
 			var env := exp(-t * 3.2) * minf(1.0, t * 300.0)
 			var f: float = notes[n]
 			s[i] += (sin(TAU * f * t) + 0.3 * sin(TAU * f * 2.0 * t)) * env * 0.22
+	return s
+
+
+## The beater packing a row: a deep wooden knock.
+func _thud() -> PackedFloat32Array:
+	var s := _samples(0.25)
+	for i in s.size():
+		var t := float(i) / RATE
+		var body := sin(TAU * 95.0 * t) * exp(-t * 22.0) * 0.7
+		body += sin(TAU * 210.0 * t) * exp(-t * 40.0) * 0.25
+		var click := randf_range(-1.0, 1.0) * exp(-t * 500.0) * 0.3
+		s[i] = body + click
 	return s
 
 

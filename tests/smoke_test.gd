@@ -90,6 +90,127 @@ func _drag(control: Control, from: Vector2, to: Vector2) -> void:
 	root.push_input(up)
 
 
+func _press_move(control: Control, from: Vector2, to: Vector2) -> void:
+	var a := _screen(control, from)
+	var b := _screen(control, to)
+	var down := InputEventMouseButton.new()
+	down.button_index = MOUSE_BUTTON_LEFT
+	down.pressed = true
+	down.position = a
+	root.push_input(down)
+	for k in 6:
+		var move := InputEventMouseMotion.new()
+		move.button_mask = MOUSE_BUTTON_MASK_LEFT
+		move.position = a.lerp(b, (k + 1) / 6.0)
+		root.push_input(move)
+		await process_frame
+
+
+func _release(control: Control, at: Vector2) -> void:
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_LEFT
+	up.pressed = false
+	up.position = _screen(control, at)
+	root.push_input(up)
+
+
+## Plays the prototype lab through real input.
+func _proto_lab() -> void:
+	var lab := await _goto("res://proto/lab.tscn")
+	_check(lab.name == "Lab", "prototype lab opens")
+	await _shot("11_lab")
+
+	# A1: press the right pedal, drag the shuttle across, row after row.
+	load("res://proto/weave/weave_game.gd").level_index = 0
+	var wg := await _goto("res://proto/weave/weave_game.tscn")
+	await _frames(3)
+	var wb: Control = wg.board
+	var loom: WeaveLoom = wg.loom
+	_check(wg.pointer.visible, "A1 tutorial points at a pedal")
+	var rest: Vector2 = Vector2(wb._shuttle_x(), wb._shed_rect().get_center().y)
+	var far: Vector2 = Vector2(wb._rest_x(-wb.side), rest.y)
+	_drag(wb, rest, far)
+	await _frames(2)
+	_check(loom.woven.is_empty(), "the shuttle bumps a closed shed")
+	var rows := 0
+	while loom.next_row() < loom.height() and rows < 10:
+		rows += 1
+		var p: int = loom.right_pedal()
+		_tap(wb, wb.pedal_rect(p).get_center())
+		await _seconds(0.25)
+		rest = Vector2(wb._shuttle_x(), wb._shed_rect().get_center().y)
+		far = Vector2(wb._rest_x(-wb.side), rest.y)
+		await _press_move(wb, rest, rest.lerp(far, 0.55))
+		if rows == 3:
+			await _shot("12_weave_mid")
+		await _press_move(wb, rest.lerp(far, 0.55), far)
+		_release(wb, far)
+		await _seconds(0.6)
+	_check(loom.complete(), "A1 woven by pedal and shuttle")
+	await _seconds(1.0)
+	_check(wg.win.visible, "A1 win card")
+	await _shot("13_weave_win")
+
+	# A3: tie the pedals by tapping knobs.
+	load("res://proto/weave/weave_game.gd").level_index = 2
+	wg = await _goto("res://proto/weave/weave_game.tscn")
+	await _frames(3)
+	wb = wg.board
+	loom = wg.loom
+	_tap(wb, wb.knob_rect(0, 0).get_center())
+	await _frames(2)
+	_check(loom.pedals[0] == 1, "tapping knob A ties shaft A to pedal 1")
+	_tap(wb, wb.knob_rect(1, 1).get_center())
+	_tap(wb, wb.knob_rect(1, 2).get_center())
+	await _frames(2)
+	_check(loom.pedals[1] == 6, "pedal 2 ties B and C")
+	_tap(wb, wb.pedal_rect(1).get_center())
+	await _seconds(0.3)
+	await _shot("14_weave_tie")
+
+	# B1: drag the first thread along the top two rows.
+	load("res://proto/thread/thread_game.gd").level_index = 0
+	var tg := await _goto("res://proto/thread/thread_game.tscn")
+	await _frames(3)
+	var tb: Control = tg.board
+	var pz: ThreadPuzzle = tg.puzzle
+	var sol: Dictionary = ThreadLevels.LEVELS[0].solution
+	for color in sol:
+		var cells: Array = sol[color]
+		var down := InputEventMouseButton.new()
+		down.button_index = MOUSE_BUTTON_LEFT
+		down.pressed = true
+		down.position = _screen(tb, tb.cell_center(Vector2i(cells[0][0], cells[0][1])))
+		root.push_input(down)
+		for k in range(1, cells.size()):
+			var move := InputEventMouseMotion.new()
+			move.button_mask = MOUSE_BUTTON_MASK_LEFT
+			move.position = _screen(tb, tb.cell_center(Vector2i(cells[k][0], cells[k][1])))
+			root.push_input(move)
+			await process_frame
+		if color == 0:
+			await _shot("15_thread_mid")
+		_release(tb, tb.cell_center(Vector2i(cells[-1][0], cells[-1][1])))
+		await _frames(2)
+	_check(pz.complete(), "B1 woven by dragging threads")
+	await _seconds(0.8)
+	_check(tg.win.visible, "B1 win card")
+
+	# B3 laid by the rules, for a picture of crossings.
+	load("res://proto/thread/thread_game.gd").level_index = 2
+	tg = await _goto("res://proto/thread/thread_game.tscn")
+	await _frames(3)
+	pz = tg.puzzle
+	sol = ThreadLevels.LEVELS[2].solution
+	for color in sol:
+		var cells: Array = sol[color]
+		pz.begin(Vector2i(cells[0][0], cells[0][1]))
+		for k in range(1, cells.size() - (2 if color == 3 else 0)):
+			pz.extend(color, Vector2i(cells[k][0], cells[k][1]))
+	await _frames(2)
+	await _shot("16_thread_crossings")
+
+
 func _run() -> void:
 	var levels: Node = root.get_node("Levels")
 	var save: Node = root.get_node("Save")
@@ -228,6 +349,8 @@ func _run() -> void:
 	current_scene.go_back()
 	await _frames(3)
 	_check(current_scene.name == "MainMenu", "one back on the menu only shows the exit hint")
+
+	await _proto_lab()
 
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save.path))
 	print("%d smoke failures" % _failures.size())

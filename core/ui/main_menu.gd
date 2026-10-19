@@ -65,6 +65,13 @@ func build() -> void:
 	play.text = "Play" if Save.completed_count() == 0 else "Continue  %s" % Levels.level(next).id
 	play.pressed.connect(func(): Audio.play("tap", 0.05, -6.0); Levels.play(next))
 	buttons.add_child(play)
+	var lab := Button.new()
+	lab.text = "Prototype Lab: new ways to play"
+	lab.theme_type_variation = &"SunButton"
+	lab.custom_minimum_size = Vector2(0, 100)
+	lab.add_theme_font_size_override("font_size", 30)
+	lab.pressed.connect(func(): Audio.play("tap", 0.05, -6.0); Screen.goto("res://proto/lab.tscn"))
+	buttons.add_child(lab)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	for item in [["Levels", "res://core/ui/level_select.tscn", &"SkyButton"],
