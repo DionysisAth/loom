@@ -4,8 +4,8 @@ extends Screen
 
 ## Printed once the first frame is up; CI's emulator test waits for it.
 const BOOT_MARKER := "LOOM_BOOT_OK"
-const TITLE_COLORS: Array[Color] = [Color("#ff5d73"), Color("#ffbe0b"), Color("#06c793"),
-		Color("#3a86ff")]
+const TITLE_COLORS: Array[Color] = [Color("#ef6f6c"), Color("#f2b84b"), Color("#4fbf9a"),
+		Color("#5b8def")]
 
 const EXIT_WINDOW := 2.0
 
@@ -31,8 +31,8 @@ func build() -> void:
 		l.theme_type_variation = &"HugeLabel"
 		l.add_theme_color_override("font_color", TITLE_COLORS[i % TITLE_COLORS.size()])
 		l.add_theme_color_override("font_outline_color", Color.WHITE)
-		l.add_theme_constant_override("outline_size", 22)
-		l.add_theme_color_override("font_shadow_color", Color(0.6, 0.2, 0.4, 0.25))
+		l.add_theme_constant_override("outline_size", 16)
+		l.add_theme_color_override("font_shadow_color", Color(0.35, 0.25, 0.3, 0.12))
 		l.add_theme_constant_override("shadow_offset_y", 10)
 		l.add_theme_constant_override("shadow_offset_x", 0)
 		title.add_child(l)
@@ -94,15 +94,16 @@ func build() -> void:
 
 
 func _process(delta: float) -> void:
+	if not Save.get_setting("motion"):
+		return
 	_t += delta
 	# Letters bob in a wave; the showcase cloth sways gently.
 	for i in _letters.size():
 		var l := _letters[i]
 		l.pivot_offset = l.size * 0.5
-		l.position.y = sin(_t * 2.2 - i * 0.7) * 8.0
-		l.rotation = sin(_t * 1.6 - i * 0.9) * 0.05
+		l.position.y = sin(_t * 1.4 - i * 0.7) * 3.0
 	_swatch.pivot_offset = _swatch.size * 0.5
-	_swatch.rotation = sin(_t * 0.8) * 0.035
+	_swatch.rotation = sin(_t * 0.5) * 0.012
 
 
 func _report_boot() -> void:

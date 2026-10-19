@@ -15,9 +15,9 @@ const MAX_EITHER := 0.2
 const CANDIDATES := 400
 
 const PALETTES := [
-	["#fff4dc", "#3a86ff", "#ff4d6d", "#ffbe0b", "#06c793"],
-	["#fff0f6", "#8f5cf0", "#ff7a1a", "#00c2d1", "#ffd23f"],
-	["#f4fff8", "#ff3d7f", "#2f7dff", "#ffc93c", "#a24cf0"],
+	["#f7f0e3", "#5b8def", "#ef6f6c", "#f2b84b", "#4fbf9a"],
+	["#f6eef3", "#9a7bd8", "#f0905a", "#46b5c4", "#e8c547"],
+	["#eef6f1", "#e86f95", "#5a86e0", "#f0b856", "#8f6fd6"],
 ]
 const WORLD_NAMES := ["Lifting", "Threading", "Full Loom"]
 const MODES := ["lifting", "threading", "full"]
@@ -62,6 +62,9 @@ func generate() -> Array[Dictionary]:
 		for slot in _schedule(w):
 			if levels.size() >= 20:
 				break
+			if slot is String and slot == "treadle_tutorials":
+				levels.append_array(treadle_tutorials())
+				continue
 			levels.append(_make(w, slot, levels.size()))
 		for i in levels.size():
 			levels[i].id = "%d-%d" % [w + 1, i + 1]
@@ -92,6 +95,22 @@ func tutorial_levels() -> Array:
 	]
 
 
+## Levels 11 and 12 introduce treadles: rows pegged to the same treadle move
+## together, and tapping a row's peg moves it to the next treadle.
+func treadle_tutorials() -> Array:
+	var a := _hand("Treadles", "lifting", 2, [1, 1, 1, 1], [0, 0, 0, 0],
+			[0, 0, 1, 1], [1, 2, 2, 1], "treadle", {"treadling": [0, 1, 1, 0]})
+	a.treadles = 2
+	a.solution.treadling = [0, 1, 1, 0]
+	a.solution.tieup = [1, 2]
+	var b := _hand("Move a Row", "lifting", 2, [2, 2, 2, 2], [0, 0, 0, 0],
+			[0, 1, 0, 1], [1, 2, 1, 2], "peg")
+	b.treadles = 2
+	b.solution.treadling = [0, 1, 0, 1]
+	b.solution.tieup = [1, 2]
+	return [a, b]
+
+
 func _hand(level_name: String, mode: String, shafts: int, warp: Array, weft: Array,
 		thr: Array, lifts: Array, tutorial: String, start := {}) -> Dictionary:
 	var level := {
@@ -106,24 +125,27 @@ func _hand(level_name: String, mode: String, shafts: int, warp: Array, weft: Arr
 	return level
 
 
-## Loom size, shafts and kind for each generated slot of a world.
+## Loom size, shafts, kind and treadles for each generated slot of a world.
+## World 1: plain lifting, then treadles from level 11.
 func _schedule(w: int) -> Array:
 	var s := []
 	match w:
 		0:
-			s = [[4, 4, 2], [4, 4, 2], [5, 4, 2], [5, 5, 2], [6, 6, 2, "showpiece"],
-				[5, 5, 3], [5, 5, 3], [6, 5, 3], [6, 6, 3], [4, 4, 3, "breather"],
-				[6, 6, 3], [6, 6, 3], [6, 6, 3], [6, 6, 3], [6, 6, 3, "showpiece"]]
+			s = [[4, 4, 2], [4, 4, 2], [5, 4, 2], [5, 5, 2], [5, 5, 2, "showpiece"],
+				"treadle_tutorials",
+				[4, 4, 2, "normal", 2], [5, 4, 2, "normal", 2], [4, 5, 2, "breather", 2],
+				[5, 5, 2, "normal", 2], [5, 5, 3, "normal", 2], [5, 6, 3, "normal", 3],
+				[6, 6, 3, "normal", 3], [6, 6, 3, "showpiece", 3]]
 		1:
-			s = [[6, 6, 3], [6, 6, 3], [6, 6, 3], [7, 6, 3], [6, 6, 3, "breather"],
-				[7, 6, 3], [7, 7, 3], [7, 7, 3], [8, 7, 3], [8, 8, 3, "showpiece"],
-				[8, 7, 3], [8, 8, 3], [8, 8, 3], [8, 8, 3], [6, 6, 3, "breather"],
-				[8, 8, 3], [8, 8, 3], [8, 8, 3], [8, 8, 3], [8, 8, 3, "showpiece"]]
+			s = [[5, 5, 3], [6, 5, 3], [6, 6, 3], [6, 6, 3], [5, 5, 3, "breather"],
+				[6, 6, 3], [6, 6, 3], [7, 6, 3], [7, 7, 3], [7, 7, 3, "showpiece"],
+				[7, 6, 3], [7, 7, 3], [7, 7, 3], [7, 7, 3], [6, 6, 3, "breather"],
+				[7, 7, 3], [7, 7, 3], [7, 7, 3], [7, 7, 3], [7, 7, 3, "showpiece"]]
 		2:
-			s = [[6, 6, 2], [6, 6, 2], [6, 6, 3], [6, 6, 3], [6, 6, 2, "breather"],
-				[7, 7, 3], [7, 7, 3], [7, 7, 3], [7, 7, 3], [8, 8, 3, "showpiece"],
-				[8, 7, 3], [8, 8, 3], [8, 8, 3], [8, 8, 3], [6, 6, 3, "breather"],
-				[8, 8, 3], [8, 8, 3], [8, 8, 3], [8, 8, 3], [8, 8, 3, "showpiece"]]
+			s = [[5, 5, 2], [6, 5, 2], [6, 6, 3], [6, 6, 3], [5, 5, 2, "breather"],
+				[6, 6, 3], [6, 6, 3], [7, 6, 3], [7, 7, 3], [7, 7, 3, "showpiece"],
+				[7, 6, 3], [7, 7, 3], [7, 7, 3], [7, 7, 3], [6, 6, 3, "breather"],
+				[7, 7, 3], [7, 7, 3], [7, 7, 3], [7, 7, 3], [7, 7, 3, "showpiece"]]
 	return s
 
 
@@ -132,6 +154,7 @@ func _make(w: int, slot: Array, position: int) -> Dictionary:
 	var height: int = slot[1]
 	var shafts: int = slot[2]
 	var kind: String = slot[3] if slot.size() > 3 else "normal"
+	var treadles: int = slot[4] if slot.size() > 4 else 0
 	var mode: String = MODES[w]
 	var pool: Array[Dictionary] = []
 	for i in CANDIDATES:
@@ -141,6 +164,8 @@ func _make(w: int, slot: Array, position: int) -> Dictionary:
 		else:
 			structure = _pick_structure(shafts)
 		var cand := _candidate(w, mode, width, height, shafts, structure, kind)
+		if treadles > 0 and not cand.is_empty():
+			_add_treadles(cand, treadles)
 		if cand.is_empty() or _seen.has(_key(cand)):
 			continue
 		if check(cand).is_empty():
@@ -166,6 +191,48 @@ func _make(w: int, slot: Array, position: int) -> Dictionary:
 	pick.erase("structure")
 	pick.kind = kind
 	return pick
+
+
+## Replaces a candidate's lifts with a treadled version: a few distinct
+## tie-ups and a treadling pattern that uses every treadle.
+func _add_treadles(cand: Dictionary, treadles: int) -> void:
+	var k: int = cand.shafts
+	var all := (1 << k) - 1
+	var masks := []
+	var guard := 0
+	while masks.size() < treadles and guard < 50:
+		guard += 1
+		var m := 1 + rng.randi() % (all - 1) if all > 2 else 1 + rng.randi() % all
+		if not masks.has(m):
+			masks.append(m)
+	if masks.size() < treadles:
+		cand.clear()
+		return
+	var h: int = cand.weft.size()
+	var pattern := []
+	var style := rng.randi() % 4
+	for r in h:
+		match style:
+			0:
+				pattern.append(r % treadles)
+			1:
+				var cycle := range(treadles) + range(treadles - 2, 0, -1)
+				pattern.append(cycle[r % cycle.size()])
+			2:
+				pattern.append((r / 2) % treadles)
+			_:
+				pattern.append(rng.randi() % treadles)
+	for t in treadles:
+		if not pattern.has(t):
+			cand.clear()
+			return
+	var lifts := []
+	for r in h:
+		lifts.append(masks[pattern[r]])
+	cand.treadles = treadles
+	cand.solution.lifts = lifts
+	cand.solution.treadling = pattern
+	cand.solution.tieup = masks
 
 
 func _pick_structure(shafts: int) -> String:
@@ -261,15 +328,18 @@ func _mutate(thr: Array, lifts: Array, k: int) -> void:
 			lifts[r] = lifts[r] ^ (1 << (rng.randi() % k))
 
 
-## Warp and weft colour ids. Warp and weft mostly draw from different colours
-## so few cells are "either".
+## Warp and weft colour ids: at most three colours per level, and warp and
+## weft draw from different colours so few cells are "either".
 func _colors(width: int, height: int, symmetric: bool) -> Array:
 	var ids := [0, 1, 2, 3, 4]
 	_shuffle(ids)
-	var warp_ids: Array = ids.slice(0, 2)
-	var weft_ids: Array = ids.slice(2, 4)
-	if rng.randf() < 0.5:
-		weft_ids = [0] if not warp_ids.has(0) else [ids[2]]
+	var warp_ids: Array = [ids[0]]
+	var weft_ids: Array = [ids[1]]
+	match rng.randi() % 3:
+		0:
+			warp_ids.append(ids[2])
+		1:
+			weft_ids.append(ids[2])
 	return [_stripes(width, warp_ids, symmetric), _stripes(height, weft_ids, symmetric)]
 
 
@@ -346,6 +416,10 @@ static func check(level: Dictionary) -> PackedStringArray:
 			if real != 1:
 				errors.append("warp %d fits %d shafts" % [c, real])
 				break
+	if level.get("treadles", 0) > 0:
+		var none := PackedInt32Array()
+		if not LoomSolver.solve_treadles(state, none, none, level.treadles - 1).is_empty():
+			errors.append("solvable with fewer treadles")
 	if level.mode == "full" and level.shafts > 2:
 		var empty := PackedInt32Array()
 		if not LoomSolver.solve_full(state, empty, empty, level.shafts - 1).is_empty():
@@ -370,6 +444,7 @@ static func score(level: Dictionary) -> float:
 	s += distinct.size()
 	if level.mode == "full":
 		s += 10.0
+	s += level.get("treadles", 0) * 4.0
 	return s
 
 

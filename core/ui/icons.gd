@@ -50,6 +50,15 @@ static func draw(ci: CanvasItem, icon: String, r: Rect2, color: Color) -> void:
 			for i in 4:
 				var o := Vector2((i % 2) * q * 1.15, (i / 2) * q * 1.15) - Vector2(q * 1.07, q * 1.07)
 				ci.draw_rect(Rect2(c + o, Vector2(q, q)), color)
+		"eye", "eye_off":
+			var pts := PackedVector2Array()
+			for i in 25:
+				var t := float(i) / 24.0 * TAU
+				pts.append(c + Vector2(cos(t) * s * 0.36, sin(t) * s * 0.2))
+			ci.draw_polyline(pts, color, w * 0.7, true)
+			ci.draw_circle(c, s * 0.11, color, true, -1.0, true)
+			if icon == "eye_off":
+				ci.draw_line(c + Vector2(-s * 0.32, -s * 0.28), c + Vector2(s * 0.32, s * 0.28), color, w * 0.8, true)
 		"settings":
 			for i in 3:
 				var y := (i - 1) * s * 0.24

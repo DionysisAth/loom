@@ -15,7 +15,8 @@ func _init() -> void:
 	add_child(_confetti)
 
 
-func open(level: Dictionary, palette: PackedColorArray, stars: int, has_next: bool) -> void:
+func open(level: Dictionary, palette: PackedColorArray, stars: int, has_next: bool,
+		taps := 0, par := 0) -> void:
 	clear_body()
 	var title := add_label("Woven!", &"TitleLabel")
 	title.add_theme_color_override("font_color", LoomTheme.ACCENT)
@@ -33,7 +34,7 @@ func open(level: Dictionary, palette: PackedColorArray, stars: int, has_next: bo
 	body.add_child(tag)
 	var row := Screen.stars_row(0, 3, 78.0)
 	body.add_child(row)
-	var reason := add_label(_reason(stars), &"SoftLabel")
+	var reason := add_label(_reason(stars, taps, par), &"SoftLabel")
 	reason.add_theme_font_size_override("font_size", 23)
 	if has_next:
 		add_button("Next", &"PrimaryButton").pressed.connect(func(): next_pressed.emit())
@@ -55,8 +56,10 @@ func open(level: Dictionary, palette: PackedColorArray, stars: int, has_next: bo
 	small.add_child(levels)
 	body.add_child(small)
 	show_card()
-	move_child(_confetti, get_child_count() - 1)
-	_confetti.burst(Vector2(size.x * 0.5, size.y * 0.42))
+	# Confetti only for the showpiece cloths, so it stays special.
+	if level.get("kind", "") == "showpiece" and Save.get_setting("motion"):
+		move_child(_confetti, get_child_count() - 1)
+		_confetti.burst(Vector2(size.x * 0.5, size.y * 0.42))
 	# Stars pop in one by one.
 	for i in stars:
 		var star: StarIcon = row.get_child(i)
@@ -69,11 +72,13 @@ func open(level: Dictionary, palette: PackedColorArray, stars: int, has_next: bo
 			Audio.play("tap", 0.0, -4.0 + i))
 
 
-func _reason(stars: int) -> String:
+func _reason(stars: int, taps: int, par: int) -> String:
 	match stars:
 		3:
-			return "Perfect: no undos, no hints"
+			return "Woven in %d taps, the best there is" % taps
 		2:
-			return "Woven with undos. Go straight through for 3 stars"
+			if taps > par:
+				return "Woven in %d taps. It can be done in %d" % [taps, par]
+			return "Woven with the dots. Try it without for 3 stars"
 		_:
 			return "Woven with a hint. Solve it on your own for more stars"

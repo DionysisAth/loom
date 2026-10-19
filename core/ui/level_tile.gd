@@ -42,7 +42,7 @@ func setup(i: int, color: Color) -> void:
 	pressed.connect(func(): Audio.play("tap", 0.05, -6.0))
 	button_down.connect(queue_redraw)
 	button_up.connect(queue_redraw)
-	set_process(_current)
+	set_process(_current and Save.get_setting("motion"))
 
 
 func _process(delta: float) -> void:

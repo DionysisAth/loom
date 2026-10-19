@@ -3,33 +3,33 @@ extends RefCounted
 ## Colours, fonts and the shared UI theme: a warm peach-to-pink backdrop,
 ## white cards, chunky pill buttons with a "3D" lip, and a light honey loom.
 
-const BG := Color("#fff3e6")
-const BG_TOP := Color("#fff6ea")
-const BG_BOTTOM := Color("#ffd6e4")
-const BG_DEEP := Color("#ffe3d9")
+const BG := Color("#f8f3ec")
+const BG_TOP := Color("#fbf8f3")
+const BG_BOTTOM := Color("#f4ece4")
+const BG_DEEP := Color("#efe5dc")
 const CARD := Color("#ffffff")
-const CARD_LIP := Color("#f3cfdc")
+const CARD_LIP := Color("#ece1d8")
 const PANEL := CARD
-const INK := Color("#3b2a52")
-const INK_SOFT := Color("#8f7ca8")
-const ACCENT := Color("#ff5d73")
-const ACCENT_DARK := Color("#d93b59")
-const SKY := Color("#3a86ff")
-const SKY_DARK := Color("#2464cc")
-const MINT := Color("#06c793")
-const MINT_DARK := Color("#049a72")
-const SUN := Color("#ffbe0b")
-const SUN_DARK := Color("#d99a00")
-const GRAPE := Color("#8f5cf0")
-const GRAPE_DARK := Color("#6a3bc7")
-const GOLD := Color("#ffc22e")
-const WOOD := Color("#f2b56b")
-const WOOD_LIGHT := Color("#ffd59e")
-const WOOD_DARK := Color("#cf8642")
-const SHAFTS: Array[Color] = [Color("#ff8f1f"), Color("#13b5a6"), Color("#9b5cf0"), Color("#3a86ff")]
+const INK := Color("#3d3346")
+const INK_SOFT := Color("#8a8094")
+const ACCENT := Color("#ef6f6c")
+const ACCENT_DARK := Color("#cf5552")
+const SKY := Color("#5b8def")
+const SKY_DARK := Color("#4470c9")
+const MINT := Color("#4fbf9a")
+const MINT_DARK := Color("#3a9a7b")
+const SUN := Color("#f2b84b")
+const SUN_DARK := Color("#cf962e")
+const GRAPE := Color("#9a7bd8")
+const GRAPE_DARK := Color("#7a5cb8")
+const GOLD := Color("#f2b84b")
+const WOOD := Color("#e8c79c")
+const WOOD_LIGHT := Color("#f5dfbf")
+const WOOD_DARK := Color("#cfa36e")
+const SHAFTS: Array[Color] = [Color("#e9964a"), Color("#3fa8a0"), Color("#9a7bd8"), Color("#5b8def")]
 const SHAFT_LETTERS := ["A", "B", "C", "D"]
 ## Each world's signature colour (tabs, chips).
-const WORLDS: Array[Color] = [Color("#ff5d73"), Color("#8f5cf0"), Color("#06c793")]
+const WORLDS: Array[Color] = [Color("#ef6f6c"), Color("#9a7bd8"), Color("#4fbf9a")]
 
 ## Coloured button variations: [face, lip, text].
 const BUTTONS := {
@@ -145,7 +145,7 @@ static func pill(face: Color, lip: Color, pressed := false, radius := 30) -> Sty
 	b.content_margin_top = 20 + (6 if pressed else 0)
 	b.content_margin_bottom = 14
 	b.anti_aliasing = true
-	b.shadow_color = Color(0.55, 0.2, 0.35, 0.12)
+	b.shadow_color = Color(0.35, 0.25, 0.3, 0.08)
 	b.shadow_size = 6
 	b.shadow_offset = Vector2(0, 4)
 	return b
@@ -161,7 +161,7 @@ static func card(radius := 30, padding := 24, color := CARD) -> StyleBoxFlat:
 	b.content_margin_top = padding
 	b.content_margin_bottom = padding
 	b.anti_aliasing = true
-	b.shadow_color = Color(0.6, 0.2, 0.4, 0.16)
+	b.shadow_color = Color(0.35, 0.25, 0.3, 0.1)
 	b.shadow_size = 18
 	b.shadow_offset = Vector2(0, 8)
 	return b
@@ -188,7 +188,7 @@ static func toggle_icon(on: bool) -> Texture2D:
 	var w := 92
 	var h := 52
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	var track := MINT if on else Color("#e9dcef")
+	var track := MINT if on else Color("#e6dfe6")
 	var r := h * 0.5
 	var knob_x := w - r if on else r
 	for y in h:

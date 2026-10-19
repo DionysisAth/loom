@@ -16,14 +16,16 @@ signal cycle_requested(col: int)
 ## Tap on a loose (untied) warp where a lift was wanted.
 signal untied_tapped(col: int)
 
-const FLIP := 0.1
-const STAGGER := 0.025
+const FLIP := 0.16
+const STAGGER := 0.035
 const FLASH := 0.9
 
 var state: LoomState
 var palette := PackedColorArray()
 var colorblind := false
-var show_mismatch := true
+var show_mismatch := false
+## With animations off, flips happen at once.
+var animate := true
 ## While true the target is shown over the cloth (hold-to-compare).
 var compare := false:
 	set(v):
@@ -100,6 +102,12 @@ func _retarget(c: int, r: int, at: float) -> bool:
 	var now := 1 if state.warp_on_top(c, r) else 0
 	if now == _final[i]:
 		return false
+	if not animate:
+		_final[i] = now
+		_from[i] = now
+		_start[i] = -10.0
+		queue_redraw()
+		return true
 	_from[i] = _visible(i)
 	_final[i] = now
 	_start[i] = at
@@ -161,9 +169,13 @@ func affected(c: int, r: int) -> Array[Vector2i]:
 		var s := state.threading[c]
 		if s < 0:
 			return out
-		for cc in state.width:
-			if state.threading[cc] == s:
-				out.append(Vector2i(cc, r))
+		var rows := [r]
+		if state.has_treadles():
+			rows = Array(state.rows_on_treadle(state.treadling[r]))
+		for rr in rows:
+			for cc in state.width:
+				if state.threading[cc] == s:
+					out.append(Vector2i(cc, rr))
 	elif not state.given_threading:
 		for rr in state.height:
 			out.append(Vector2i(c, rr))
@@ -220,7 +232,7 @@ func _notification(what: int) -> void:
 func _draw() -> void:
 	if state == null:
 		return
-	draw_rect(Rect2(Vector2.ZERO, cloth_size()), ThreadTextures.GAP_COLOR)
+	draw_rect(Rect2(Vector2.ZERO, cloth_size()), Color("#f3ebe2"))
 	for r in state.height:
 		for c in state.width:
 			var i := r * state.width + c
@@ -229,18 +241,13 @@ func _draw() -> void:
 			if t > 0.0 and t < 1.0:
 				squash = maxf(0.08, absf(1.0 - 2.0 * t))
 			var top := _shown(c, r)
-			var a: bool
-			var b: bool
-			if top:
-				a = r > 0 and not _shown(c, r - 1)
-				b = r < state.height - 1 and not _shown(c, r + 1)
-			else:
-				a = c > 0 and _shown(c - 1, r)
-				b = c < state.width - 1 and _shown(c + 1, r)
 			var wid := state.warp_colors[c]
 			var fid := state.weft_colors[r]
-			ThreadTextures.draw_crossing(self, cell_rect(c, r), top, palette[wid], palette[fid],
-					squash, colorblind, wid, fid, a, b)
+			# Each crossing is a tile in its target colour with the top thread on it.
+			var goal := state.target[i]
+			var top_id := wid if top else fid
+			ThreadTextures.draw_tile(self, cell_rect(c, r), top, palette[top_id], palette[goal],
+					squash, colorblind, top_id, goal)
 	var ft := (_clock - _flash_t) / FLASH
 	if ft >= 0.0 and ft < 1.0:
 		var glow := Color(1, 0.97, 0.75, 0.6 * (1.0 - ft))

@@ -8,6 +8,8 @@ extends RefCounted
 signal row_changed(row: int, old_mask: int)
 ## A warp's shaft changed. `old_shaft` is the previous shaft (or UNTIED).
 signal column_changed(col: int, old_shaft: int)
+## A row moved to another treadle.
+signal treadle_changed(row: int, old_treadle: int)
 ## The whole state was replaced (restart).
 signal reset
 
@@ -27,6 +29,12 @@ var lifts := PackedInt32Array()
 var target := PackedInt32Array()
 var given_threading := false
 var given_lifts := false
+## Treadles (0 = none, every row has its own lifts). With treadles each row
+## is pegged to one treadle, and a row's lifts are its treadle's tie-up, so
+## rows on the same treadle always move together.
+var treadle_count := 0
+var treadling := PackedInt32Array()
+var tieup := PackedInt32Array()
 
 
 ## Builds the state a player starts a level with.
@@ -56,6 +64,14 @@ static func from_level(level: Dictionary) -> LoomState:
 		s.lifts = PackedInt32Array(start.lifts)
 	else:
 		s.lifts = _filled(s.height, 0)
+	s.treadle_count = int(level.get("treadles", 0))
+	if s.treadle_count > 0:
+		s.treadling = PackedInt32Array(start.treadling) if start.has("treadling") \
+				else _filled(s.height, 0)
+		s.tieup = PackedInt32Array(start.tieup) if start.has("tieup") \
+				else _filled(s.treadle_count, 0)
+		for r in s.height:
+			s.lifts[r] = s.tieup[s.treadling[r]]
 	return s
 
 
@@ -92,6 +108,9 @@ func copy() -> LoomState:
 	s.target = target.duplicate()
 	s.given_threading = given_threading
 	s.given_lifts = given_lifts
+	s.treadle_count = treadle_count
+	s.treadling = treadling.duplicate()
+	s.tieup = tieup.duplicate()
 	return s
 
 
@@ -135,8 +154,17 @@ func all_shafts_mask() -> int:
 	return (1 << shafts) - 1
 
 
+func has_treadles() -> bool:
+	return treadle_count > 0
+
+
+## Sets a row's lifts. With treadles this sets the row's treadle, so every
+## row on it changes too.
 func set_row_lifts(r: int, mask: int) -> void:
 	mask &= all_shafts_mask()
+	if has_treadles():
+		set_tieup(treadling[r], mask)
+		return
 	var old := lifts[r]
 	if old == mask:
 		return
@@ -146,6 +174,42 @@ func set_row_lifts(r: int, mask: int) -> void:
 
 func toggle_lift(r: int, shaft: int) -> void:
 	set_row_lifts(r, lifts[r] ^ (1 << shaft))
+
+
+func set_tieup(t: int, mask: int) -> void:
+	mask &= all_shafts_mask()
+	if tieup[t] == mask:
+		return
+	tieup[t] = mask
+	for r in height:
+		if treadling[r] == t:
+			_sync_row(r)
+
+
+## Pegs a row to another treadle.
+func set_treadle(r: int, t: int) -> void:
+	var old := treadling[r]
+	if old == t:
+		return
+	treadling[r] = t
+	treadle_changed.emit(r, old)
+	_sync_row(r)
+
+
+func rows_on_treadle(t: int) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for r in height:
+		if treadling[r] == t:
+			out.append(r)
+	return out
+
+
+func _sync_row(r: int) -> void:
+	var old := lifts[r]
+	var mask := tieup[treadling[r]]
+	if old != mask:
+		lifts[r] = mask
+		row_changed.emit(r, old)
 
 
 func set_threading(c: int, shaft: int) -> void:
@@ -160,6 +224,20 @@ func set_threading(c: int, shaft: int) -> void:
 func load_setup(thr: PackedInt32Array, lft: PackedInt32Array) -> void:
 	threading = thr.duplicate()
 	lifts = lft.duplicate()
+	reset.emit()
+
+
+## Everything the player can change, for restart.
+func snapshot() -> Dictionary:
+	return {"threading": threading.duplicate(), "lifts": lifts.duplicate(),
+		"treadling": treadling.duplicate(), "tieup": tieup.duplicate()}
+
+
+func restore(snap: Dictionary) -> void:
+	threading = snap.threading.duplicate()
+	lifts = snap.lifts.duplicate()
+	treadling = snap.treadling.duplicate()
+	tieup = snap.tieup.duplicate()
 	reset.emit()
 
 

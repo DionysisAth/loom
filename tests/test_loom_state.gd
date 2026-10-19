@@ -60,6 +60,16 @@ func test_signals() -> void:
 	eq(cols, [[2, 0]], "column signal")
 
 
+func test_snapshot_restores_everything() -> void:
+	var s := LoomState.from_level(_level("full"))
+	var snap := s.snapshot()
+	s.toggle_lift(0, 1)
+	s.set_threading(2, 0)
+	s.restore(snap)
+	eq(s.lifts, PackedInt32Array([0, 0]), "lifts restored")
+	eq(s.threading, PackedInt32Array([-1, -1, -1, -1]), "threading restored")
+
+
 func test_copy_is_independent() -> void:
 	var s := LoomState.from_level(_level())
 	var c := s.copy()

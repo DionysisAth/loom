@@ -63,10 +63,75 @@ class SetThreading extends Command:
 		state.set_threading(col, _old)
 
 
+## Tap a row's peg: move the row to the next treadle.
+class CycleTreadle extends Command:
+	var state: LoomState
+	var row: int
+	var _old := 0
+
+	func _init(s: LoomState, r: int) -> void:
+		state = s
+		row = r
+
+	func do() -> void:
+		_old = state.treadling[row]
+		state.set_treadle(row, (_old + 1) % state.treadle_count)
+
+	func undo() -> void:
+		state.set_treadle(row, _old)
+
+
+## Peg a row onto a given treadle (used by hints).
+class SetTreadle extends Command:
+	var state: LoomState
+	var row: int
+	var treadle: int
+	var _old := 0
+
+	func _init(s: LoomState, r: int, t: int, hint := false) -> void:
+		state = s
+		row = r
+		treadle = t
+		is_hint = hint
+
+	func do() -> void:
+		_old = state.treadling[row]
+		state.set_treadle(row, treadle)
+
+	func undo() -> void:
+		state.set_treadle(row, _old)
+
+
+## Set which shafts a treadle lifts (used by hints).
+class SetTieup extends Command:
+	var state: LoomState
+	var treadle: int
+	var mask: int
+	var _old := 0
+
+	func _init(s: LoomState, t: int, m: int, hint := false) -> void:
+		state = s
+		treadle = t
+		mask = m
+		is_hint = hint
+
+	func do() -> void:
+		_old = state.tieup[treadle]
+		state.set_tieup(treadle, mask)
+
+	func undo() -> void:
+		state.set_tieup(treadle, _old)
+
+
 ## Builds the command for a hint returned by LoomSolver.hint().
 static func from_hint(state: LoomState, h: Dictionary) -> Command:
 	if h.is_empty():
 		return null
-	if h.kind == "row":
-		return SetRowLifts.new(state, h.row, h.lifts, true)
+	match h.kind:
+		"row":
+			return SetRowLifts.new(state, h.row, h.lifts, true)
+		"peg":
+			return SetTreadle.new(state, h.row, h.treadle, true)
+		"tieup":
+			return SetTieup.new(state, h.treadle, h.lifts, true)
 	return SetThreading.new(state, h.col, h.shaft, true)

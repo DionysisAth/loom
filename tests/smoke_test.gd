@@ -107,13 +107,13 @@ func _run() -> void:
 	await _shot("02_tutorial")
 	var board: LoomBoard = game.board
 	_check(game.pointer.visible, "tutorial pointer shows")
-	var sw := board.switches
-	_tap(sw, sw.switch_rect(0, 1).get_center())
+	_check(not board.switches.visible and not board.draft.visible, "lifting levels show only the cloth")
+	var view: LoomView = board.view
+	_tap(view, view.cell_rect(1, 0).get_center())
 	await _frames(2)
-	_check(game.state.lifts[0] == 2, "tap on switch B lifts shaft B")
+	_check(game.state.lifts[0] == 2, "tapping a B crossing lifts shaft B")
 	game._on_undo()
 	_check(game.state.lifts[0] == 0, "undo lowers it")
-	var view: LoomView = board.view
 	_check(view.affected(0, 0).size() == 2, "pressing a crossing previews its whole shaft")
 	_drag(view, view.cell_rect(0, 0).get_center(), view.cell_rect(0, 0).get_center() + Vector2(0, -view.cell * 2))
 	await _frames(2)
@@ -127,11 +127,36 @@ func _run() -> void:
 	await _frames(2)
 	_check(game.state.lifts[0] == 1, "tapping the cloth lifts that crossing's shaft")
 	_check(game._won, "lifting shaft A wins level 1")
-	_check(game.stars() == 2, "an undo gives 2 stars")
+	_check(game.stars() == 3, "undo is free: the fewest taps still earns 3 stars")
 	await _seconds(1.2)
 	_check(game.win_panel.visible, "win panel shows")
 	await _shot("03_win")
-	_check(save.stars("1-1") == 2, "win saved with 2 stars")
+	_check(save.stars("1-1") == 3, "win saved with 3 stars")
+
+	# Level 12: everyone starts on treadle 1; tap a peg to move a row.
+	levels.current = 11
+	game = await _goto("res://game/game.tscn")
+	await _frames(3)
+	_check(game.pointer.visible, "the treadle tutorial points somewhere")
+	await _shot("03b_treadles")
+	var peg: Rect2 = game.board.peg_rect(1)
+	_tap(game.board, peg.get_center() - game.board.global_position)
+	await _frames(2)
+	_check(game.state.treadling[1] == 1, "tapping a peg moves the row to treadle 2")
+	var tview: LoomView = game.board.view
+	_check(tview.affected(0, 0).size() == 6, "a crossing previews every row on its treadle (3 rows x 2 threads)")
+	game._on_eye()
+	_check(tview.show_mismatch, "the eye shows the mismatch dots")
+	var steps := 0
+	while not game._won and steps < 20:
+		var m: Dictionary = LoomSolver.next_move(game.state)
+		if m.kind == "peg":
+			game._on_peg(m.row)
+		else:
+			game._on_lift(m.row, m.shaft)
+		steps += 1
+	_check(game._won, "level 12 can be woven by taps")
+	_check(game.stars() == 2, "using the dots caps it at 2 stars")
 
 	# Level 5: drag the loose warp onto shaft B.
 	levels.current = 4
@@ -175,7 +200,7 @@ func _run() -> void:
 	_check(game.state.threading[0] == 1, "tapping again moves it to shaft B")
 	game._on_hint()
 	game._on_restart()
-	_check(game.state.threading == game._start_threading, "restart resets the loom")
+	_check(game.state.threading == game._start.threading, "restart resets the loom")
 	game._open_pause()
 	await _frames(2)
 	_check(game.pause_panel.visible, "pause panel opens")

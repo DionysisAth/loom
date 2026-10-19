@@ -5,7 +5,7 @@ extends Screen
 const TOGGLES := [
 	["sound", "Sound"],
 	["haptics", "Vibration"],
-	["mismatch", "Show mismatch dots"],
+	["motion", "Animations"],
 	["colorblind", "Colourblind threads"],
 ]
 

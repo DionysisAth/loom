@@ -24,15 +24,15 @@ func _initialize() -> void:
 		f.close()
 		print("wrote %s (%d levels)" % [path, world.levels.size()])
 		for level in world.levels:
-			print("  %-5s %-10s %dx%d k%d %-9s %s" % [level.id, level.mode, level.warp.size(),
-				level.weft.size(), level.shafts, level.kind, level.name])
+			print("  %-5s %-10s %dx%d k%d t%d %-9s %s" % [level.id, level.mode, level.warp.size(),
+				level.weft.size(), level.shafts, level.get("treadles", 0), level.kind, level.name])
 	quit(1 if failed else 0)
 
 
 ## Stable key order so diffs stay readable.
 func _ordered(level: Dictionary) -> Dictionary:
 	var out := {}
-	for key in ["id", "name", "kind", "mode", "shafts", "tutorial", "warp", "weft", "solution", "start"]:
+	for key in ["id", "name", "kind", "mode", "shafts", "treadles", "tutorial", "warp", "weft", "solution", "start"]:
 		if level.has(key):
 			out[key] = level[key]
 	return out

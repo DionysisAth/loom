@@ -2,6 +2,12 @@ class_name Chip
 extends PanelContainer
 ## A small rounded label in a colour, e.g. "1-3 · Lifting".
 
+var _label: Label
+
+
+func set_text(text: String) -> void:
+	_label.text = text
+
 
 func _init(text := "", color := LoomTheme.ACCENT, font_size := 22) -> void:
 	size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -14,7 +20,8 @@ func _init(text := "", color := LoomTheme.ACCENT, font_size := 22) -> void:
 	b.content_margin_bottom = 3
 	b.anti_aliasing = true
 	add_theme_stylebox_override("panel", b)
-	var l := Label.new()
+	_label = Label.new()
+	var l := _label
 	l.text = text
 	l.add_theme_font_override("font", LoomTheme.font(600))
 	l.add_theme_font_size_override("font_size", font_size)

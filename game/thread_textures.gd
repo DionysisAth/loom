@@ -12,8 +12,13 @@ const SEG_W := 48
 const SEG_L := 96
 ## Thread width as a share of the cell.
 const THREAD := 0.86
+## Thread width on the playing cloth: narrower, so each cell's corners show
+## the target colour underneath.
+const THREAD_IN_CLOTH := 0.66
+## Thread width on a playing-cloth tile.
+const TILE_THREAD := 0.54
 ## How much the thread underneath is darkened.
-const UNDER_SHADE := 0.8
+const UNDER_SHADE := 0.86
 const GAP_COLOR := Color("#8c5c45")
 
 static var _vertical: Texture2D
@@ -51,13 +56,13 @@ static func _build() -> void:
 			var u := (x + 0.5) / SEG_W
 			var profile := sin(PI * u)
 			# Bright yarn: only the very edges roll into shade.
-			var b := 0.74 + 0.26 * pow(profile, 0.45)
-			# Yarn twist: faint diagonal ridges.
-			b += 0.05 * sin((x * 0.55 + y * 0.85) * 1.3) * profile
+			var b := 0.8 + 0.2 * pow(profile, 0.45)
+			# Yarn twist: very faint diagonal ridges.
+			b += 0.025 * sin((x * 0.55 + y * 0.85) * 1.3) * profile
 			b = clampf(b, 0.0, 1.0)
 			var a := clampf(profile * 9.0, 0.0, 1.0)
 			img.set_pixel(x, y, Color(b, b, b, a))
-			var g := exp(-pow((u - 0.34) / 0.11, 2.0)) * 0.55
+			var g := exp(-pow((u - 0.34) / 0.12, 2.0)) * 0.2
 			g *= 0.8 + 0.2 * sin((x * 0.55 + y * 0.85) * 1.3)
 			gloss.set_pixel(x, y, Color(1, 1, 1, clampf(g, 0.0, 1.0)))
 	_vertical = ImageTexture.create_from_image(img)
@@ -115,9 +120,9 @@ static func pattern_tint(base: Color) -> Color:
 ## `dive_*` say whether the top thread goes under at that end (draws shade).
 static func draw_crossing(ci: CanvasItem, rect: Rect2, warp_top: bool, warp: Color,
 		weft: Color, squash := 1.0, colorblind := false, warp_id := 0, weft_id := 0,
-		dive_a := true, dive_b := true) -> void:
+		dive_a := true, dive_b := true, thread := THREAD) -> void:
 	var cell := rect.size.x
-	var tw := cell * THREAD
+	var tw := cell * thread
 	var inset := (cell - tw) * 0.5
 	var top := warp if warp_top else weft
 	var under := weft if warp_top else warp
@@ -131,7 +136,7 @@ static func draw_crossing(ci: CanvasItem, rect: Rect2, warp_top: bool, warp: Col
 		var w := tw * squash
 		var shadow := Rect2(rect.get_center().x - w * 0.5 - cell * 0.04, rect.position.y,
 				w + cell * 0.08, cell)
-		ci.draw_rect(shadow, Color(0.3, 0.05, 0.15, 0.14 * squash))
+		ci.draw_rect(shadow, Color(0.3, 0.05, 0.15, 0.09 * squash))
 		var o := Rect2(rect.get_center().x - w * 0.5, rect.position.y, w, cell)
 		ci.draw_texture_rect(vertical(), o, false, top)
 		ci.draw_texture_rect(_gloss_v, o, false)
@@ -144,12 +149,61 @@ static func draw_crossing(ci: CanvasItem, rect: Rect2, warp_top: bool, warp: Col
 		var hgt := tw * squash
 		var shadow := Rect2(rect.position.x, rect.get_center().y - hgt * 0.5 - cell * 0.04,
 				cell, hgt + cell * 0.08)
-		ci.draw_rect(shadow, Color(0.3, 0.05, 0.15, 0.14 * squash))
+		ci.draw_rect(shadow, Color(0.3, 0.05, 0.15, 0.09 * squash))
 		var o := Rect2(rect.position.x, rect.get_center().y - hgt * 0.5, cell, hgt)
 		ci.draw_texture_rect(horizontal(), o, false, top)
 		ci.draw_texture_rect(_gloss_h, o, false)
 		draw_pattern(ci, o, top_id, top, colorblind, 1.0)
 		_dives(ci, o, false, dive_a, dive_b)
+
+
+## A crossing on the playing cloth: a soft tile in the target colour with
+## the top thread lying on it. When the thread matches, the tile reads as one
+## solid colour; when it does not, the target colour frames the thread.
+static func draw_tile(ci: CanvasItem, rect: Rect2, warp_top: bool, top: Color, goal: Color,
+		squash := 1.0, colorblind := false, top_id := 0, goal_id := 0) -> void:
+	var cell := rect.size.x
+	var gap := maxf(1.0, cell * 0.035)
+	var tile := rect.grow(-gap)
+	var b := StyleBoxFlat.new()
+	b.bg_color = goal
+	b.set_corner_radius_all(int(cell * 0.16))
+	b.anti_aliasing = true
+	ci.draw_style_box(b, tile)
+	if colorblind:
+		draw_pattern(ci, tile, goal_id, goal, true, 0.7)
+	var tw := cell * TILE_THREAD
+	var length := cell * 0.9
+	var o: Rect2
+	if warp_top:
+		var w := tw * squash
+		o = Rect2(rect.get_center() - Vector2(w, length) * 0.5, Vector2(w, length))
+	else:
+		var h := tw * squash
+		o = Rect2(rect.get_center() - Vector2(length, h) * 0.5, Vector2(length, h))
+	var radius := int(minf(o.size.x, o.size.y) * 0.5)
+	var shadow := StyleBoxFlat.new()
+	shadow.bg_color = Color(0.25, 0.15, 0.2, 0.12 * squash)
+	shadow.set_corner_radius_all(radius)
+	shadow.anti_aliasing = true
+	ci.draw_style_box(shadow, Rect2(o.position + Vector2(0, cell * 0.03), o.size))
+	var face := StyleBoxFlat.new()
+	face.bg_color = top
+	face.set_corner_radius_all(radius)
+	face.anti_aliasing = true
+	ci.draw_style_box(face, o)
+	# A soft highlight along the yarn.
+	var hl := StyleBoxFlat.new()
+	hl.bg_color = Color(1, 1, 1, 0.28)
+	hl.anti_aliasing = true
+	var hr: Rect2
+	if warp_top:
+		hr = Rect2(o.position + Vector2(o.size.x * 0.22, o.size.x * 0.25), Vector2(o.size.x * 0.18, o.size.y - o.size.x * 0.5))
+	else:
+		hr = Rect2(o.position + Vector2(o.size.y * 0.25, o.size.y * 0.22), Vector2(o.size.x - o.size.y * 0.5, o.size.y * 0.18))
+	hl.set_corner_radius_all(int(minf(hr.size.x, hr.size.y) * 0.5))
+	ci.draw_style_box(hl, hr)
+	draw_pattern(ci, o, top_id, top, colorblind, 1.0)
 
 
 static func draw_pattern(ci: CanvasItem, r: Rect2, id: int, base: Color, on: bool, alpha: float) -> void:

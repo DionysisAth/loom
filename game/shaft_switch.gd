@@ -87,7 +87,7 @@ func _draw() -> void:
 				# Gloss.
 				var g := Rect2(face.position + Vector2(face.size.x * 0.18, face.size.y * 0.1),
 						Vector2(face.size.x * 0.64, face.size.y * 0.22))
-				draw_style_box(_box(Color(1, 1, 1, 0.35), 0, 0.5), g)
+				draw_style_box(_box(Color(1, 1, 1, 0.2), 0, 0.5), g)
 				_letter(font, face, letter, Color.WHITE)
 			else:
 				var push := lip * (0.7 if down else 0.0)

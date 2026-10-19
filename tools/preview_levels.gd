@@ -13,9 +13,11 @@ func _initialize() -> void:
 			if not only.is_empty() and not only.has(level.id):
 				continue
 			var state := LoomState.from_level(level)
-			print("%s %s  [%s, %d shafts, %s] either=%d%% score=%.1f" % [level.id, level.name,
-				level.mode, level.shafts, level.kind, int(state.either_fraction() * 100),
-				LevelGenerator.score(level)])
+			print("%s %s  [%s, %d shafts, %d treadles, %s] either=%d%% score=%.1f par=%d" % [level.id,
+				level.name, level.mode, level.shafts, level.treadles, level.kind,
+				int(state.either_fraction() * 100), LevelGenerator.score(level), LoomSolver.par(level)])
+			if level.treadles > 0:
+				print("   treadling ", level.solution.treadling, " tieup ", level.solution.tieup)
 			for r in state.height:
 				var line := "   "
 				for c in state.width:

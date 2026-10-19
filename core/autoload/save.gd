@@ -11,7 +11,7 @@ const DEFAULT_SETTINGS := {
 	"sound": true,
 	"haptics": true,
 	"colorblind": false,
-	"mismatch": true,
+	"motion": true,
 }
 
 ## Tests point this at a scratch file.

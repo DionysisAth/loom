@@ -47,10 +47,14 @@ static func normalize_level(raw: Dictionary, world: Dictionary) -> Dictionary:
 			"threading": _ints(sol.get("threading", [])),
 			"lifts": _ints(sol.get("lifts", [])),
 		},
+		"treadles": int(raw.get("treadles", 0)),
 		"tutorial": str(raw.get("tutorial", "")),
 		"kind": str(raw.get("kind", "normal")),
 		"world": world.world,
 	}
+	if level.treadles > 0:
+		level.solution.treadling = _ints(sol.get("treadling", []))
+		level.solution.tieup = _ints(sol.get("tieup", []))
 	if raw.has("start"):
 		var start := {}
 		for key in raw.start:
@@ -87,4 +91,17 @@ static func validate(level: Dictionary) -> PackedStringArray:
 	for m in level.solution.lifts:
 		if m < 0 or m >= (1 << level.shafts):
 			errors.append("lift mask %d out of range" % m)
+	var t: int = level.get("treadles", 0)
+	if t > 0:
+		if level.mode != "lifting":
+			errors.append("treadles need a lifting level")
+		var sol: Dictionary = level.solution
+		if sol.get("treadling", []).size() != h or sol.get("tieup", []).size() != t:
+			errors.append("treadle solution has the wrong size")
+		else:
+			for r in h:
+				if sol.treadling[r] < 0 or sol.treadling[r] >= t:
+					errors.append("row %d uses treadle %d" % [r, sol.treadling[r]])
+				elif sol.tieup[sol.treadling[r]] != sol.lifts[r]:
+					errors.append("row %d lifts do not match its treadle" % r)
 	return errors

@@ -13,10 +13,12 @@ otherwise the weft does. Match the target cloth.
 | --- | --- |
 | Lift switches per row, ripple flip, win check | done |
 | Tap the cloth: flips that crossing's shaft in its row, with a press preview (slide off to cancel) | done |
-| Mismatch dots on crossings that differ from the target (can be turned off) | done |
+| Target inside the cloth: each crossing is a tile in its target colour with the top thread on it | done |
+| Mismatch dots as an opt-in hint (eye button) | done |
+| Treadles (levels 11-20): rows on the same treadle lift together; tap a row's peg to move it to another treadle | done |
 | Hold the target to lay it over the cloth | done |
 | Drag-to-thread warps onto shafts (tap also works) | done |
-| Unlimited undo and restart, stars (3 clean / 2 with undo / 1 with hint) | done |
+| Free undo and restart; stars for taps vs the level best: 3 at best, 2 with extra taps or the dots, 1 with a hint | done |
 | Unlimited hints (set one row or one warp correctly) | done |
 | Interactive 5-level tutorial (animated pointer, no reading needed) | done |
 | 60 levels in 3 worlds: Lifting, Threading, Full Loom | done |
@@ -24,7 +26,7 @@ otherwise the weft does. Match the target cloth.
 | Colourblind mode (thread textures per colour) | done |
 | Quilt meta-progression (simple grid per world) | done |
 | Local save, local analytics log, synthesized sounds, haptics | done |
-| Bright look: Fredoka font, gradient backdrop, pill buttons, honey loom, confetti | done |
+| Calm look: muted palette, at most 3 colours per level, still background, panels only when a level needs them, "Animations" setting | done |
 | Ads, IAP, consent | v1.0, not in the MVP |
 
 ## Project layout

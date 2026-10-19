@@ -8,9 +8,11 @@ const MODE_NAMES := {"lifting": "Lifting", "threading": "Threading", "full": "Fu
 const CAPTIONS := {
 	"tap": "Tap the cloth to lift a thread",
 	"rows": "Each row lifts on its own",
-	"match": "The dots show what still needs to change",
+	"match": "Make each thread match the colour around it",
 	"shaft": "Threads on the same shaft lift together",
 	"drag": "Drag the loose thread onto a shaft",
+	"treadle": "Rows with the same peg lift together",
+	"peg": "Tap a peg to move its row to another treadle",
 }
 
 var level: Dictionary
@@ -27,8 +29,14 @@ var _caption: Label
 var _undo_btn: IconButton
 var _restart_btn: IconButton
 var _hint_btn: IconButton
-var _start_threading: PackedInt32Array
-var _start_lifts: PackedInt32Array
+var _eye_btn: IconButton
+var _taps_chip: Chip
+## The level's start, for restart, and the fewest taps it takes.
+var _start := {}
+var _par := 0
+## Player moves currently in the undo stack (hints and undone moves excluded).
+var _taps := 0
+var _dots_used := false
 var _won := false
 var _used_undo := false
 var _undos := 0
@@ -41,23 +49,25 @@ var _matched_rows := 0
 func build() -> void:
 	level = Levels.current_level()
 	state = LoomState.from_level(level)
-	_start_threading = state.threading.duplicate()
-	_start_lifts = state.lifts.duplicate()
+	_start = state.snapshot()
+	_par = LoomSolver.par(level)
 	var palette := Levels.palette(level.index)
 	var colorblind: bool = Save.get_setting("colorblind")
 
 	# Top bar: menu, title, hint, undo, restart.
 	var bar := HBoxContainer.new()
-	var menu := IconButton.new("menu", LoomTheme.INK)
+	var menu := IconButton.new("menu", LoomTheme.INK, 74.0)
 	menu.pressed.connect(_open_pause)
 	bar.add_child(menu)
 	var titles := VBoxContainer.new()
 	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	titles.alignment = BoxContainer.ALIGNMENT_CENTER
 	titles.add_theme_constant_override("separation", 2)
-	var chip := Chip.new("%s  ·  %s" % [level.id, MODE_NAMES.get(level.mode, "")],
-			LoomTheme.world_color(level.world_index))
-	titles.add_child(chip)
+	var chips := HBoxContainer.new()
+	chips.add_theme_constant_override("separation", 8)
+	chips.add_child(Chip.new("%s  ·  %s" % [level.id, MODE_NAMES.get(level.mode, "")],
+			LoomTheme.world_color(level.world_index)))
+	titles.add_child(chips)
 	_title = Label.new()
 	_title.text = level.name
 	_title.add_theme_font_override("font", LoomTheme.font(650))
@@ -65,13 +75,16 @@ func build() -> void:
 	_title.clip_text = true
 	titles.add_child(_title)
 	bar.add_child(titles)
-	_hint_btn = IconButton.new("hint", LoomTheme.SUN_DARK)
+	_eye_btn = IconButton.new("eye", LoomTheme.GRAPE, 74.0)
+	_eye_btn.pressed.connect(_on_eye)
+	bar.add_child(_eye_btn)
+	_hint_btn = IconButton.new("hint", LoomTheme.SUN_DARK, 74.0)
 	_hint_btn.pressed.connect(_on_hint)
 	bar.add_child(_hint_btn)
-	_undo_btn = IconButton.new("undo", LoomTheme.SKY)
+	_undo_btn = IconButton.new("undo", LoomTheme.SKY, 74.0)
 	_undo_btn.pressed.connect(_on_undo)
 	bar.add_child(_undo_btn)
-	_restart_btn = IconButton.new("restart", LoomTheme.ACCENT)
+	_restart_btn = IconButton.new("restart", LoomTheme.ACCENT, 74.0)
 	_restart_btn.pressed.connect(_on_restart)
 	bar.add_child(_restart_btn)
 	content.add_child(bar)
@@ -95,6 +108,8 @@ func build() -> void:
 	goal.add_theme_font_override("font", LoomTheme.font(650))
 	goal.add_theme_font_size_override("font_size", 34)
 	labels.add_child(goal)
+	_taps_chip = Chip.new("", LoomTheme.INK_SOFT, 21)
+	labels.add_child(_taps_chip)
 	var hold := Label.new()
 	hold.text = "Hold it to\ncompare"
 	hold.theme_type_variation = &"SoftLabel"
@@ -116,11 +131,12 @@ func build() -> void:
 
 	board.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	board.setup(state, palette, colorblind)
-	board.view.show_mismatch = Save.get_setting("mismatch")
+	board.view.show_mismatch = false
+	board.view.animate = Save.get_setting("motion")
 	_matched_rows = _rows_matched()
 	board.lift_toggled.connect(_on_lift)
 	board.warp_threaded.connect(_on_thread)
-	board.untied_tapped.connect(func(_c): Audio.play("tap", 0.05, -8.0); Haptics.tap())
+	board.peg_tapped.connect(_on_peg)
 	content.add_child(board)
 
 	add_child(pointer)
@@ -136,6 +152,7 @@ func build() -> void:
 
 	state.row_changed.connect(func(_r, _o): Audio.play("swish", 0.15, -10.0))
 	undo.changed.connect(_update_buttons)
+	_update_taps()
 	_update_buttons()
 	_started_ms = Time.get_ticks_msec()
 	Analytics.track("level_start", {"level": level.id})
@@ -148,6 +165,7 @@ func _on_lift(r: int, s: int) -> void:
 	if _won:
 		return
 	undo.push(LoomCommands.ToggleLift.new(state, r, s))
+	_taps += 1
 	Audio.play("clack")
 	Haptics.tap()
 	_after_move()
@@ -157,7 +175,18 @@ func _on_thread(c: int, s: int) -> void:
 	if _won:
 		return
 	undo.push(LoomCommands.SetThreading.new(state, c, s))
+	_taps += 1
 	Audio.play("pluck", 0.04)
+	Haptics.snap()
+	_after_move()
+
+
+func _on_peg(r: int) -> void:
+	if _won:
+		return
+	undo.push(LoomCommands.CycleTreadle.new(state, r))
+	_taps += 1
+	Audio.play("pluck", 0.06)
 	Haptics.snap()
 	_after_move()
 
@@ -165,7 +194,9 @@ func _on_thread(c: int, s: int) -> void:
 func _on_undo() -> void:
 	if _won or not undo.can_undo():
 		return
-	undo.undo()
+	var cmd := undo.undo()
+	if cmd != null and not cmd.is_hint:
+		_taps -= 1
 	_used_undo = true
 	_undos += 1
 	_after_move()
@@ -174,8 +205,9 @@ func _on_undo() -> void:
 func _on_restart() -> void:
 	if _won or not undo.can_undo():
 		return
-	state.load_setup(_start_threading, _start_lifts)
+	state.restore(_start)
 	undo.clear()
+	_taps = 0
 	_used_undo = true
 	_undos += 1
 	Audio.play("swish", 0.05, -4.0)
@@ -192,12 +224,18 @@ func _on_hint() -> void:
 	undo.push(cmd)
 	_hints += 1
 	Analytics.track("hint_used", {"level": level.id, "kind": h.kind})
-	if h.kind == "row":
-		board.view.flash_row(h.row)
-		Audio.play("clack", 0.02)
-	else:
-		board.view.flash_column(h.col)
-		Audio.play("pluck", 0.02)
+	match h.kind:
+		"row", "peg":
+			board.view.flash_row(h.row)
+			Audio.play("clack", 0.02)
+		"tieup":
+			var rows := state.rows_on_treadle(h.treadle)
+			if not rows.is_empty():
+				board.view.flash_row(rows[0])
+			Audio.play("clack", 0.02)
+		_:
+			board.view.flash_column(h.col)
+			Audio.play("pluck", 0.02)
 	Haptics.snap()
 	_after_move()
 
@@ -205,6 +243,7 @@ func _on_hint() -> void:
 func _after_move() -> void:
 	_moves += 1
 	_update_buttons()
+	_update_taps()
 	_reward_rows()
 	if state.matches_target():
 		_win()
@@ -242,10 +281,30 @@ func _on_compare(held: bool) -> void:
 		Audio.play("tap", 0.03, -8.0)
 
 
+func _update_taps() -> void:
+	_taps_chip.set_text("%d / %d taps" % [_taps, _par])
+
+
+## Show or hide the mismatch dots. Using them caps the level at 2 stars.
+func _on_eye() -> void:
+	if _won:
+		return
+	board.view.show_mismatch = not board.view.show_mismatch
+	board.view.queue_redraw()
+	if board.view.show_mismatch:
+		_dots_used = true
+	_eye_btn.icon_name = "eye_off" if board.view.show_mismatch else "eye"
+	_eye_btn.queue_redraw()
+
+
+## 3 stars for weaving it in the fewest taps without help; 2 with extra taps
+## or the dots; 1 with a hint. Undo is always free.
 func stars() -> int:
 	if _hints > 0:
 		return 1
-	return 2 if _used_undo else 3
+	if _dots_used or _taps > _par:
+		return 2
+	return 3
 
 
 func _update_tutorial() -> void:
@@ -257,6 +316,8 @@ func _update_tutorial() -> void:
 		pointer.clear()
 	elif move.kind == "lift":
 		pointer.point_tap(board.crossing_rect(_crossing_for(move.row, move.shaft), move.row))
+	elif move.kind == "peg":
+		pointer.point_tap(board.peg_rect(move.row))
 	else:
 		var from := board.slot_rect(move.col, maxi(state.threading[move.col], 0))
 		if state.threading[move.col] < 0:
@@ -293,7 +354,7 @@ func _win() -> void:
 	Haptics.success()
 	var has_next := Levels.next_index(level.index) >= 0
 	get_tree().create_timer(0.55).timeout.connect(func():
-		win_panel.open(level, Levels.palette(level.index), earned, has_next))
+		win_panel.open(level, Levels.palette(level.index), earned, has_next, _taps, _par))
 
 
 func _on_next() -> void:
@@ -311,7 +372,7 @@ func _open_pause() -> void:
 
 func _on_settings_changed() -> void:
 	var cb: bool = Save.get_setting("colorblind")
-	board.view.show_mismatch = Save.get_setting("mismatch")
+	board.view.animate = Save.get_setting("motion")
 	board.set_colorblind(cb)
 	target.colorblind = cb
 	target.queue_redraw()

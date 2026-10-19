@@ -43,6 +43,27 @@ func test_tutorial_comes_first() -> void:
 	check(levels[5].tutorial.is_empty(), "tutorial ends after five")
 
 
+func test_treadles_arrive_in_world_one() -> void:
+	var levels := all_levels()
+	for i in 20:
+		current = levels[i].id
+		if i < 10:
+			eq(levels[i].treadles, 0, "no treadles before level 11")
+		else:
+			check(levels[i].treadles >= 2, "treadles from level 11")
+	eq(levels[10].tutorial, "treadle", "level 11 teaches treadles")
+	eq(levels[11].tutorial, "peg", "level 12 teaches pegs")
+
+
+func test_few_colours_per_level() -> void:
+	for lv in all_levels():
+		current = lv.id
+		var ids := {}
+		for c in lv.warp + lv.weft:
+			ids[c] = true
+		check(ids.size() <= 3, "at most three colours (has %d)" % ids.size())
+
+
 func test_breathers_and_showpieces() -> void:
 	for w in world_files():
 		current = "world %d" % w.world
