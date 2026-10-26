@@ -33,9 +33,11 @@ class SilentSfx extends Sfx {
   void hint() => played.add('hint');
 }
 
+/// Plays each sound from a few preloaded low-latency players, round robin.
 class PooledSfx extends Sfx {
   static const _plucks = 12;
-  final Map<String, AudioPool> _pools = {};
+  final Map<String, List<AudioPlayer>> _players = {};
+  final Map<String, int> _next = {};
   final Set<String> _loading = {};
   bool _broken = false;
 
@@ -49,23 +51,25 @@ class PooledSfx extends Sfx {
     await _load('hint');
   }
 
-  Future<AudioPool?> _load(String name) async {
-    if (_broken) return null;
-    final existing = _pools[name];
-    if (existing != null) return existing;
-    if (!_loading.add(name)) return null;
+  Future<void> _load(String name) async {
+    if (_broken || _players.containsKey(name) || !_loading.add(name)) return;
     try {
-      final pool = await AudioPool.create(
-        source: AssetSource('audio/$name.wav'),
-        maxPlayers: name.startsWith('pluck') ? 2 : 1,
-        playerMode: PlayerMode.lowLatency,
-      );
-      _pools[name] = pool;
-      return pool;
+      final count = name.startsWith('pluck') ? 2 : 1;
+      final list = <AudioPlayer>[];
+      for (var i = 0; i < count; i++) {
+        final p = AudioPlayer()
+          // We never read the playback position; without this the player
+          // asks for a new frame on every tick while a sound plays.
+          ..positionUpdater = null;
+        await p.setPlayerMode(PlayerMode.lowLatency);
+        await p.setReleaseMode(ReleaseMode.stop);
+        await p.setSource(AssetSource('audio/$name.wav'));
+        list.add(p);
+      }
+      _players[name] = list;
     } catch (e) {
       debugPrint('loom: audio unavailable ($e)');
       _broken = true;
-      return null;
     } finally {
       _loading.remove(name);
     }
@@ -73,15 +77,23 @@ class PooledSfx extends Sfx {
 
   void _play(String name, double volume) {
     if (!enabled || _broken) return;
-    final pool = _pools[name];
-    if (pool == null) {
+    final list = _players[name];
+    if (list == null) {
       _load(name);
       return;
     }
-    pool.start(volume: volume).catchError((Object e) {
-      debugPrint('loom: audio failed ($e)');
-      return () async {};
-    });
+    final i = _next[name] ?? 0;
+    _next[name] = (i + 1) % list.length;
+    final player = list[i];
+    () async {
+      try {
+        await player.stop();
+        await player.setVolume(volume);
+        await player.resume();
+      } catch (e) {
+        debugPrint('loom: audio failed ($e)');
+      }
+    }();
   }
 
   @override
