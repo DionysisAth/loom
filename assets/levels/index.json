@@ -1,0 +1,60 @@
+{
+  "chapters": [
+    {
+      "chapter": 1,
+      "mechanic": "threads",
+      "first": 1,
+      "last": 6,
+      "file": "chapter_01.json"
+    },
+    {
+      "chapter": 2,
+      "mechanic": "crossings",
+      "first": 7,
+      "last": 13,
+      "file": "chapter_02.json"
+    },
+    {
+      "chapter": 3,
+      "mechanic": "shapes",
+      "first": 14,
+      "last": 20,
+      "file": "chapter_03.json"
+    },
+    {
+      "chapter": 4,
+      "mechanic": "beads",
+      "first": 21,
+      "last": 27,
+      "file": "chapter_04.json"
+    },
+    {
+      "chapter": 5,
+      "mechanic": "eyelets",
+      "first": 28,
+      "last": 34,
+      "file": "chapter_05.json"
+    },
+    {
+      "chapter": 6,
+      "mechanic": "stitches",
+      "first": 35,
+      "last": 41,
+      "file": "chapter_06.json"
+    },
+    {
+      "chapter": 7,
+      "mechanic": "spools",
+      "first": 42,
+      "last": 49,
+      "file": "chapter_07.json"
+    },
+    {
+      "chapter": 8,
+      "mechanic": "mix",
+      "first": 50,
+      "last": 60,
+      "file": "chapter_08.json"
+    }
+  ]
+}
