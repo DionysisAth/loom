@@ -108,6 +108,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Open the app and clear level 1 on the emulator
+        timeout-minutes: 25
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
@@ -115,7 +116,7 @@ jobs:
           target: ${{ matrix.api-level >= 30 && 'google_apis' || 'default' }}
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: flutter test integration_test/app_test.dart
+          script: flutter test integration_test/app_test.dart --reporter expanded --timeout 6m
 
   ios:
     name: iOS simulator build and launch test
@@ -148,7 +149,8 @@ jobs:
           xcrun simctl boot "$UDID"
           echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
       - name: Open the app and clear level 1 on the simulator
-        run: flutter test integration_test/app_test.dart -d "$SIM_UDID"
+        timeout-minutes: 25
+        run: flutter test integration_test/app_test.dart -d "$SIM_UDID" --reporter expanded --timeout 6m
       - name: Signed IPA and TestFlight upload
         if: env.HAS_IOS_SIGNING == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: ios

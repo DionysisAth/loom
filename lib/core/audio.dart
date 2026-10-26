@@ -61,9 +61,11 @@ class PooledSfx extends Sfx {
           // We never read the playback position; without this the player
           // asks for a new frame on every tick while a sound plays.
           ..positionUpdater = null;
-        await p.setPlayerMode(PlayerMode.lowLatency);
-        await p.setReleaseMode(ReleaseMode.stop);
-        await p.setSource(AssetSource('audio/$name.wav'));
+        // A stuck audio device must never hold the game up.
+        const limit = Duration(seconds: 5);
+        await p.setPlayerMode(PlayerMode.lowLatency).timeout(limit);
+        await p.setReleaseMode(ReleaseMode.stop).timeout(limit);
+        await p.setSource(AssetSource('audio/$name.wav')).timeout(limit);
         list.add(p);
       }
       _players[name] = list;

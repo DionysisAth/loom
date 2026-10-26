@@ -30,12 +30,15 @@ void main() {
   ) async {
     // Real services, but a fresh in-memory save so the run always starts at level 1.
     final game = createGame(store: MemorySaveStore());
+    debugPrint('loom test: starting app');
     await tester.pumpWidget(LoomApp(game: game));
     await waitFor(tester, find.byKey(const Key('continue')));
+    debugPrint('loom test: home screen up');
     expect(find.text('Level 1'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('continue')));
     await waitFor(tester, find.byKey(const Key('board')));
+    debugPrint('loom test: level 1 board up');
     await tester.pump(const Duration(milliseconds: 600));
 
     final puzzle = game.levels.level(1);
@@ -59,6 +62,7 @@ void main() {
       }
       await gesture.up();
       await tester.pump(const Duration(milliseconds: 100));
+      debugPrint('loom test: dragged thread ${knot.colour}');
     }
 
     await waitFor(
