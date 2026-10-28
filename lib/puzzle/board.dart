@@ -29,6 +29,9 @@ class Board {
 
   final Puzzle puzzle;
   final Map<int, List<int>> _threads = {};
+
+  /// The player's over/under choices at crossings (free-weave levels).
+  final Map<int, int> _over = {};
   Map<int, List<int>>? _snapshot;
   int? _active;
   Weave? _weave;
@@ -39,7 +42,8 @@ class Board {
   Map<int, List<int>> get threads => Map.unmodifiable(_threads);
   List<int>? threadOf(int colour) => _threads[colour];
 
-  Weave get weave => _weave ??= Weave(puzzle, _threads);
+  Weave get weave => _weave ??= Weave(puzzle, _threads, over: _over);
+  Map<int, int> get over => Map.unmodifiable(_over);
   bool get isCleared => weave.isCleared;
 
   void _changed() => _weave = null;
@@ -298,7 +302,40 @@ class Board {
   void clearAll() {
     end();
     _threads.clear();
+    _over.clear();
     _changed();
+  }
+
+  // ------------------------------------------------------------- weaving --
+
+  /// Whether the player may choose the weave at [cell].
+  bool canFlip(int cell) =>
+      puzzle.freeWeave &&
+      cell >= 0 &&
+      cell < puzzle.cellCount &&
+      puzzle.isCrossing(cell);
+
+  /// Swaps which thread goes over at a crossing. Returns false if the weave
+  /// there is fixed.
+  bool flip(int cell) {
+    if (!canFlip(cell)) return false;
+    _over[cell] = 1 - weave.overAxisAt(cell);
+    _changed();
+    return true;
+  }
+
+  /// A crossing whose weave target fails but would pass if flipped, or null.
+  int? wrongWeave() {
+    final w = weave;
+    for (final e in puzzle.features.entries) {
+      if (e.value.kind != FeatureKind.weave || !canFlip(e.key)) continue;
+      final c = e.key;
+      final h = w.occupant(c, axisH), v = w.occupant(c, axisV);
+      if (h < 0 || v < 0) continue;
+      if (!WeaveRule().violations(w).contains(c)) continue;
+      if (WeaveRule.canMeet(e.value, h, v)) return c;
+    }
+    return null;
   }
 
   /// Lays [path] for [colour] (used by hints), pulling back any thread in its
@@ -310,6 +347,11 @@ class Board {
         if (e.key != colour) e.key: List.of(e.value),
     };
     _threads[colour] = List.of(path);
+    // A hint thread also takes its solution weave at the crossings it passes.
+    for (final c in path) {
+      final axis = puzzle.solutionOver[c];
+      if (axis != null && canFlip(c)) _over[c] = axis;
+    }
     _recutOthers(colour);
     var cuts = 0;
     for (final e in _snapshot!.entries) {

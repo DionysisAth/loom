@@ -25,10 +25,10 @@ void main(List<String> args) {
   for (final chapter in chapters) {
     final first = id + 1;
     final levels = <Puzzle>[];
-    for (final slot in chapter.slots) {
+    for (final (slotIndex, slot) in chapter.slots.indexed) {
       id++;
       if (only != null && chapter.number != only) continue;
-      final p = _build(chapter, slot, id);
+      final p = _build(chapter, slot, id, slotIndex);
       levels.add(p);
       stdout.writeln(
         'level $id (ch ${chapter.number}, ${slot.role.name}): '
@@ -80,8 +80,10 @@ String _encode(Map<String, Object?> chapter) {
   return b.toString();
 }
 
-Puzzle _build(Chapter chapter, Slot slot, int id) {
-  final rng = Random(seed * 31 + id * 7919);
+Puzzle _build(Chapter chapter, Slot slot, int id, int slotIndex) {
+  // Seeded by chapter and slot, not level number, so adding a chapter does
+  // not reshuffle the levels after it.
+  final rng = Random(_stableHash('$seed/${chapter.mechanic}/$slotIndex'));
   final gen = Generator(rng);
   final want = switch (slot.role) {
     Role.showpiece => 1,
@@ -157,4 +159,14 @@ int _teachColour(Puzzle p, Chapter chapter, Slot slot) {
 
   final sorted = List.of(p.knots)..sort((a, b) => score(b).compareTo(score(a)));
   return sorted.first.colour;
+}
+
+/// FNV-1a, so seeds do not depend on the Dart version's string hashing.
+int _stableHash(String text) {
+  var h = 0x811c9dc5;
+  for (final unit in text.codeUnits) {
+    h ^= unit;
+    h = (h * 0x01000193) & 0xffffffff;
+  }
+  return h;
 }

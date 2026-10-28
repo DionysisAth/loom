@@ -21,9 +21,9 @@ void main() {
     }
   }
 
-  test('60 levels in 8 chapters, numbered in order', () {
-    expect(chapters.length, 8);
-    expect(levels.length, 60);
+  test('66 levels in 9 chapters, numbered in order', () {
+    expect(chapters.length, 9);
+    expect(levels.length, 66);
     for (var i = 0; i < levels.length; i++) {
       expect(levels[i].id, i + 1);
     }
@@ -83,7 +83,7 @@ void main() {
 
   for (final p in levels) {
     test('level ${p.id}: stored solution clears it and is the only one', () {
-      final w = Weave(p, p.solution);
+      final w = Weave(p, p.solution, over: p.solutionOver);
       expect(w.errors, isEmpty);
       expect(w.isCleared, isTrue);
       final r = Solver(p).solve(limit: 2, maxNodes: 2000000);

@@ -58,6 +58,9 @@ abstract final class Cloth {
   static const backdropDeep = Color(0xFFDCCFBA);
   static const fabric = Color(0xFFF8F2E7);
   static const fabricShade = Color(0xFFEDE4D3);
+
+  /// The back of the cloth: a touch darker, like the wrong side of linen.
+  static const fabricBack = Color(0xFFEBE1CE);
   static const looseCloth = Color(0xFFD9CBB4);
   static const woodLight = Color(0xFFD6A970);
   static const wood = Color(0xFFBC8A52);

@@ -16,45 +16,52 @@
     },
     {
       "chapter": 3,
-      "mechanic": "shapes",
+      "mechanic": "weave",
       "first": 14,
-      "last": 20,
+      "last": 19,
       "file": "chapter_03.json"
     },
     {
       "chapter": 4,
-      "mechanic": "beads",
-      "first": 21,
-      "last": 27,
+      "mechanic": "shapes",
+      "first": 20,
+      "last": 26,
       "file": "chapter_04.json"
     },
     {
       "chapter": 5,
-      "mechanic": "eyelets",
-      "first": 28,
-      "last": 34,
+      "mechanic": "beads",
+      "first": 27,
+      "last": 33,
       "file": "chapter_05.json"
     },
     {
       "chapter": 6,
-      "mechanic": "stitches",
-      "first": 35,
-      "last": 41,
+      "mechanic": "eyelets",
+      "first": 34,
+      "last": 40,
       "file": "chapter_06.json"
     },
     {
       "chapter": 7,
-      "mechanic": "spools",
-      "first": 42,
-      "last": 49,
+      "mechanic": "stitches",
+      "first": 41,
+      "last": 47,
       "file": "chapter_07.json"
     },
     {
       "chapter": 8,
-      "mechanic": "mix",
-      "first": 50,
-      "last": 60,
+      "mechanic": "spools",
+      "first": 48,
+      "last": 55,
       "file": "chapter_08.json"
+    },
+    {
+      "chapter": 9,
+      "mechanic": "mix",
+      "first": 56,
+      "last": 66,
+      "file": "chapter_09.json"
     }
   ]
 }

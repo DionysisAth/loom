@@ -103,6 +103,10 @@ class Solver {
   final Map<int, int> _knotB = {};
   bool _impossible = false;
 
+  /// Free-weave targets: (across node, down node, front colour, back colour),
+  /// with -1 for a side that has no target.
+  final List<(int, int, int, int)> _pairs = [];
+
   int get nodeCount => _nodeCell.length;
 
   void _build() {
@@ -175,6 +179,25 @@ class Solver {
               ? _nodeOf[c * 2 + p.overAxis(c)]
               : _nodeOf[c * 2];
           _initDom[node] &= 1 << f.colour!;
+        case FeatureKind.weave:
+          if (!p.isCrossing(c)) {
+            _impossible = true;
+          } else if (p.freeWeave) {
+            _pairs.add((
+              _nodeOf[c * 2 + axisH],
+              _nodeOf[c * 2 + axisV],
+              f.colour ?? -1,
+              f.back ?? -1,
+            ));
+          } else {
+            final over = p.overAxis(c);
+            if (f.colour != null) {
+              _initDom[_nodeOf[c * 2 + over]] &= 1 << f.colour!;
+            }
+            if (f.back != null) {
+              _initDom[_nodeOf[c * 2 + 1 - over]] &= 1 << f.back!;
+            }
+          }
       }
     }
     for (var node = 0; node < n; node++) {
@@ -440,7 +463,57 @@ class Solver {
   /// Every colour must still be able to reach its twin; cells no colour can
   /// reach make the state dead, and colours that cannot reach a cell are
   /// removed from its options.
+  /// Narrows the colours at free-weave targets: the two threads crossing
+  /// there must fit the target one way round or the other.
+  bool _weavePairs(_State s, List<int> q) {
+    for (var changed = true; changed;) {
+      changed = false;
+      for (final (h, v, front, back) in _pairs) {
+        final rh = s.find(h), rv = s.find(v);
+        final dh = s.dom[rh], dv = s.dom[rv];
+        // Every (across, down) colour pair that fits the target.
+        var allowH = 0, allowV = 0;
+        for (var a = dh; a != 0; a &= a - 1) {
+          final colourA = (a & -a).bitLength - 1;
+          for (var b = dv; b != 0; b &= b - 1) {
+            final colourB = (b & -b).bitLength - 1;
+            // Both halves in one thread means one colour.
+            if (rh == rv && colourA != colourB) continue;
+            bool fits(int top, int bottom) =>
+                (front < 0 || top == front) && (back < 0 || bottom == back);
+            if (fits(colourA, colourB) || fits(colourB, colourA)) {
+              allowH |= 1 << colourA;
+              allowV |= 1 << colourB;
+            }
+          }
+        }
+        if (rh == rv) allowH = allowV = allowH & allowV;
+        if (allowH == 0 || allowV == 0) return false;
+        if (allowH != dh) {
+          s.dom[rh] = allowH;
+          q
+            ..add(s.endA[rh])
+            ..add(s.endB[rh]);
+          changed = true;
+        }
+        if (rv != rh && allowV != dv) {
+          s.dom[rv] = allowV;
+          q
+            ..add(s.endA[rv])
+            ..add(s.endB[rv]);
+          changed = true;
+        }
+      }
+    }
+    return true;
+  }
+
   bool _reach(_State s) {
+    if (_pairs.isNotEmpty) {
+      final q = <int>[];
+      if (!_weavePairs(s, q)) return false;
+      if (q.isNotEmpty && !_propagate(s, q)) return false;
+    }
     final n = nodeCount;
     final reach = Int32List(n);
     final stack = <int>[];

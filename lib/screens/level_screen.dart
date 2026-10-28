@@ -41,6 +41,18 @@ class _LevelScreenState extends State<LevelScreen>
     vsync: this,
     duration: const Duration(milliseconds: 1400),
   );
+
+  /// Turning the hoop over to see the back of the cloth.
+  late final AnimationController _turn = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 560),
+  );
+  late final AnimationController _turnGlow = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1300),
+  );
+  bool _back = false;
+  bool _turnedOnce = false;
   ChapterInfo? _card;
   bool _done = false;
   bool _clearing = false;
@@ -64,7 +76,36 @@ class _LevelScreenState extends State<LevelScreen>
     _lift.value = 0;
     _enter.forward(from: 0);
     _clearing = false;
+    _back = false;
+    _turn.value = 0;
+    _turnedOnce = false;
+    // Levels with targets on the back invite a turn until the player tries it.
+    final backTargets = _puzzle.features.values.any(
+      (f) => f.kind == FeatureKind.weave && f.back != null,
+    );
+    if (backTargets) {
+      _turnGlow.repeat(reverse: true);
+    } else {
+      _turnGlow
+        ..stop()
+        ..value = 0;
+    }
     _resetIdle();
+  }
+
+  Future<void> _turnHoop() async {
+    if (_turn.isAnimating || _clearing) return;
+    _turnedOnce = true;
+    _turnGlow
+      ..stop()
+      ..value = 0;
+    _game.haptics.tick();
+    await _turn.forward(from: 0);
+    if (!mounted) return;
+    setState(() {
+      _back = !_back;
+      _turn.value = 0;
+    });
   }
 
   void _resetIdle() {
@@ -86,6 +127,8 @@ class _LevelScreenState extends State<LevelScreen>
     _idle?.cancel();
     _lift.dispose();
     _enter.dispose();
+    _turn.dispose();
+    _turnGlow.dispose();
     _glow.dispose();
     super.dispose();
   }
@@ -168,6 +211,21 @@ class _LevelScreenState extends State<LevelScreen>
                         ],
                       ),
                     ),
+                    if (_puzzle.freeWeave && _card == null && !_done) ...[
+                      AnimatedBuilder(
+                        animation: _turnGlow,
+                        builder: (context, _) => RoundButton(
+                          key: const Key('turn'),
+                          icon: Icons.flip_rounded,
+                          tooltip: _back ? 'Show the front' : 'Show the back',
+                          glow: _turnedOnce
+                              ? 0
+                              : Curves.easeInOut.transform(_turnGlow.value),
+                          onPressed: _turnHoop,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
                     RoundButton(
                       icon: Icons.replay_rounded,
                       tooltip: 'Clear the hoop',
@@ -236,31 +294,42 @@ class _LevelScreenState extends State<LevelScreen>
       );
     }
     return AnimatedBuilder(
-      animation: Listenable.merge([_lift, _enter]),
-      builder: (context, child) {
+      animation: Listenable.merge([_lift, _enter, _turn]),
+      builder: (context, _) {
         final lift = Curves.easeInCubic.transform(_lift.value);
         final enter = Curves.easeOutCubic.transform(_enter.value);
+        // Turning over: rotate to edge-on, swap sides, rotate back flat.
+        final turn = Curves.easeInOut.transform(_turn.value);
+        final showBack = turn < 0.5 ? _back : !_back;
+        final angle = turn < 0.5 ? turn * pi : (turn - 1) * pi;
+        final board = BoardView(
+          key: const Key('board'),
+          puzzle: _puzzle,
+          controller: _board,
+          sfx: game.sfx,
+          haptics: game.haptics,
+          symbols: game.settings.symbols,
+          back: showBack,
+          onProgress: _resetIdle,
+          onCleared: _cleared,
+        );
         return Opacity(
           opacity: (1 - lift) * enter,
           child: Transform.translate(
             offset: Offset(0, -70 * lift + 90 * (1 - enter)),
             child: Transform.scale(
               scale: 1 + 0.06 * lift - 0.04 * (1 - enter),
-              child: child,
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.0012)
+                  ..rotateY(angle),
+                child: board,
+              ),
             ),
           ),
         );
       },
-      child: BoardView(
-        key: const Key('board'),
-        puzzle: _puzzle,
-        controller: _board,
-        sfx: game.sfx,
-        haptics: game.haptics,
-        symbols: game.settings.symbols,
-        onProgress: _resetIdle,
-        onCleared: _cleared,
-      ),
     );
   }
 }

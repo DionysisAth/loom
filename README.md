@@ -8,18 +8,34 @@ two threads pass through each other, one over and one under. When the last
 cell is filled the threads tighten, the piece lifts out, and the next hoop
 slides in.
 
-This is the MVP test build from the game plan: 60 levels in 8 chapters.
+This is the MVP test build from the game plan, plus a prototype of the
+two-sided weave: 66 levels in 9 chapters.
 
 | Chapter | Levels | Mechanic |
 | --- | --- | --- |
 | 1 | 1–6 | Threads: connect the knots and fill the hoop |
 | 2 | 7–13 | Crossings: one thread over, one under |
-| 3 | 14–20 | Shaped hoops |
-| 4 | 21–27 | Beads (pass straight) and pins (turn here) |
-| 5 | 28–34 | Eyelets (this colour must pass through) |
-| 6 | 35–41 | Picture stitches (this colour must be on top) |
-| 7 | 42–49 | Spools (the thread must be exactly this long) |
-| 8 | 50–60 | Mix |
+| 3 | 14–19 | Weave (prototype): tap a crossing to choose which thread goes over; the front and the back of the cloth must show the right colours |
+| 4 | 20–26 | Shaped hoops |
+| 5 | 27–33 | Beads (pass straight) and pins (turn here) |
+| 6 | 34–40 | Eyelets (this colour must pass through) |
+| 7 | 41–47 | Picture stitches (this colour must be on top) |
+| 8 | 48–55 | Spools (the thread must be exactly this long) |
+| 9 | 56–66 | Mix |
+
+### The weave (chapter 3)
+
+On woven levels the player decides which thread is on top at each crossing:
+tap a crossing to flip it. A weave target on a crossing says what the cloth
+must show there: a cross-stitch in the corner for the side you are looking
+at, a small ring for the other side. The turn-over button flips the hoop to
+show the back of the cloth (mirrored, with the under-threads on top). The
+chapter ends with a 3×3 woven "basket" whose front and back show opposite
+patterns.
+
+Test builds have a "jump to a chapter" row in Settings, so a new chapter can
+be tried without replaying the ones before it. It is not part of the
+finished game, which has no level select.
 
 Each chapter opens with two teaching levels (an animated finger shows the new
 idea, no text) and ends with a showpiece whose finished threads form a
@@ -69,8 +85,10 @@ tests and the level tools.
 - `Board` (`lib/puzzle/board.dart`) holds the drag rules: start at a knot,
   grow, back up, loop back, cut through other threads (they grow back if you
   back away during the same drag), pass straight through crossings.
-- The weave decides who is on top at a crossing: on cells where `x + y` is
-  even the horizontal thread is over, otherwise the vertical one.
+- At a crossing, the fixed weave puts the horizontal thread on top where
+  `x + y` is even, otherwise the vertical one. Free-weave levels start the
+  same way, and the player can flip any crossing (`Board.flip`). The front
+  shows the thread on top; the back shows the one underneath.
 
 ## Levels
 
@@ -83,7 +101,7 @@ dart run tool/generate.dart --only=4 # one chapter
 
 The generator covers the hoop with random paths, puts knots at the ends, and
 asks the solver whether the solution is unique. If it is not, it adds a clue
-of the chapter's mechanic (bead, pin, eyelet, stitch or spool) where the
+of the chapter's mechanic (bead, pin, eyelet, stitch, weave target or spool) where the
 intended solution and the other one differ, then removes clues that turn out
 not to be needed. Every level has exactly one solution, so hints (which lay
 the stored solution thread) are always right. `test/levels_test.dart` checks

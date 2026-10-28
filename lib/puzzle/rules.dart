@@ -6,7 +6,9 @@ import 'puzzle.dart';
 /// each thread enters and leaves each cell, which threads are complete, and
 /// which local rules are broken.
 class Weave {
-  Weave(this.puzzle, Map<int, List<int>> threads)
+  /// [over] holds the player's choices of which axis is on top at crossings
+  /// (free-weave levels); crossings not in it use the puzzle's fixed weave.
+  Weave(this.puzzle, Map<int, List<int>> threads, {this.over = const {}})
     : threads = Map.unmodifiable(threads),
       _occ = Int32List(puzzle.cellCount * 2)
         ..fillRange(0, puzzle.cellCount * 2, -1),
@@ -18,6 +20,7 @@ class Weave {
 
   final Puzzle puzzle;
   final Map<int, List<int>> threads;
+  final Map<int, int> over;
   final Int32List _occ;
   final Int32List _links;
 
@@ -75,9 +78,18 @@ class Weave {
   int occupant(int cell, [int axis = axisH]) =>
       _occ[cell * 2 + (puzzle.isCrossing(cell) ? axis : 0)];
 
-  /// The colour seen on top of [cell], or -1.
+  /// Which axis is on top at a crossing.
+  int overAxisAt(int cell) => over[cell] ?? puzzle.overAxis(cell);
+
+  /// The colour seen on the front of the cloth at [cell], or -1.
   int topColour(int cell) => puzzle.isCrossing(cell)
-      ? _occ[cell * 2 + puzzle.overAxis(cell)]
+      ? _occ[cell * 2 + overAxisAt(cell)]
+      : _occ[cell * 2];
+
+  /// The colour seen on the back of the cloth at [cell], or -1. Only
+  /// crossings differ: the back shows the thread that went under.
+  int bottomColour(int cell) => puzzle.isCrossing(cell)
+      ? _occ[cell * 2 + 1 - overAxisAt(cell)]
       : _occ[cell * 2];
 
   /// Bitmask of directions the thread on a normal cell connects to.
@@ -233,10 +245,43 @@ class SpoolRule extends Rule {
   }
 }
 
+/// Weave targets: the front must show one colour and/or the back another.
+class WeaveRule extends Rule {
+  const WeaveRule();
+  @override
+  String get id => 'weave';
+
+  @override
+  Iterable<int> violations(Weave w) sync* {
+    for (final e in w.puzzle.features.entries) {
+      if (e.value.kind != FeatureKind.weave) continue;
+      final c = e.key;
+      final top = w.topColour(c), bottom = w.bottomColour(c);
+      final front = e.value.colour, back = e.value.back;
+      if (front != null && top != -1 && top != front) {
+        yield c;
+      } else if (back != null && bottom != -1 && bottom != back) {
+        yield c;
+      }
+    }
+  }
+
+  /// Whether some choice of over/under at [cell] could meet its target with
+  /// the colours that pass there ([h] across, [v] down). Used when the
+  /// weave is the player's to choose.
+  static bool canMeet(Feature f, int h, int v) {
+    bool fits(int top, int bottom) =>
+        (f.colour == null || top == f.colour) &&
+        (f.back == null || bottom == f.back);
+    return fits(h, v) || fits(v, h);
+  }
+}
+
 const List<Rule> rules = [
   BeadRule(),
   PinRule(),
   EyeletRule(),
   StitchRule(),
   SpoolRule(),
+  WeaveRule(),
 ];

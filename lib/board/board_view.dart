@@ -46,8 +46,10 @@ class BoardView extends StatefulWidget {
     required this.sfx,
     required this.haptics,
     this.symbols = true,
+    this.back = false,
     this.onProgress,
     this.onCleared,
+    this.onFlip,
   });
 
   final Puzzle puzzle;
@@ -55,6 +57,12 @@ class BoardView extends StatefulWidget {
   final Sfx sfx;
   final Haptics haptics;
   final bool symbols;
+
+  /// Show the hoop from the back of the cloth (mirrored, under-threads up).
+  final bool back;
+
+  /// Called when the player flips a crossing's weave.
+  final VoidCallback? onFlip;
 
   /// Called whenever the player gets further than before (for the hint timer).
   final VoidCallback? onProgress;
@@ -86,6 +94,11 @@ class _BoardViewState extends State<BoardView>
   Duration? _tightenStart;
   bool _cleared = false;
 
+  // Weaving: a press on a crossing becomes a flip if the finger lifts there,
+  // or a drag if it moves off.
+  int? _pendingTap;
+  final Map<int, Duration> _flips = {};
+
   // Teaching finger.
   bool _ghostOn = false;
   Duration _ghostStart = Duration.zero;
@@ -103,6 +116,8 @@ class _BoardViewState extends State<BoardView>
   static const _pulse = Duration(milliseconds: 380);
   static const _tighten = Duration(milliseconds: 900);
   static const _ghostLoop = Duration(milliseconds: 3600);
+  static const _flipRipple = Duration(milliseconds: 450);
+  static const _tapLoop = Duration(milliseconds: 1800);
 
   @override
   void initState() {
@@ -125,6 +140,8 @@ class _BoardViewState extends State<BoardView>
     _finger = null;
     _snapColour = null;
     _knotPulses.clear();
+    _pendingTap = null;
+    _flips.clear();
     _growColour = null;
     _tightenStart = null;
     _cleared = false;
@@ -168,6 +185,7 @@ class _BoardViewState extends State<BoardView>
       _teaching ||
       _snapColour != null ||
       _knotPulses.isNotEmpty ||
+      _flips.isNotEmpty ||
       _growColour != null ||
       _tightenStart != null ||
       _board.weave.violations.isNotEmpty;
@@ -179,6 +197,7 @@ class _BoardViewState extends State<BoardView>
       _snapStart = null;
     }
     _knotPulses.removeWhere((_, start) => _now - start > _pulse);
+    _flips.removeWhere((_, start) => _now - start > _flipRipple);
     if (_growColour != null && _now - _growStart! > _growLength) {
       _growColour = null;
       _afterChange();
@@ -208,7 +227,8 @@ class _BoardViewState extends State<BoardView>
 
   // ------------------------------------------------------------- input --
 
-  BoardLayout _layout() => BoardLayout(widget.puzzle, context.size!);
+  BoardLayout _layout() =>
+      BoardLayout(widget.puzzle, context.size!, mirrored: widget.back);
 
   bool get _busy => _cleared || _growColour != null;
 
@@ -218,22 +238,44 @@ class _BoardViewState extends State<BoardView>
     _ghostOn = false;
     _lastTouch = _now;
     final l = _layout();
-    final colour = _board.begin(l.cellAt(e.localPosition));
-    if (colour != null) {
+    final cell = l.cellAt(e.localPosition);
+    if (_board.canFlip(cell)) {
+      // Wait: lifting here flips the weave, moving off starts a drag.
+      _pendingTap = cell;
       _finger = e.localPosition;
-      _snapColour = null;
-      widget.haptics.tick();
-      widget.sfx.pluck(_board.threadOf(colour)!.length - 1);
+      _kick();
+      setState(() {});
+      return;
     }
+    _startDrag(cell, e.localPosition);
     _kick();
     setState(() {});
   }
 
+  void _startDrag(int cell, Offset at) {
+    final colour = _board.begin(cell);
+    if (colour != null) {
+      _finger = at;
+      _snapColour = null;
+      widget.haptics.tick();
+      widget.sfx.pluck(_board.threadOf(colour)!.length - 1);
+    }
+  }
+
   void _move(PointerMoveEvent e) {
-    if (e.pointer != _pointer || _board.active == null) return;
+    if (e.pointer != _pointer) return;
+    final l = _layout();
+    final tap = _pendingTap;
+    if (tap != null) {
+      if (l.cellRect(tap).inflate(l.cell * 0.15).contains(e.localPosition)) {
+        return;
+      }
+      _pendingTap = null;
+      _startDrag(tap, e.localPosition);
+    }
+    if (_board.active == null) return;
     _lastTouch = _now;
     _finger = e.localPosition;
-    final l = _layout();
     final path = _board.threadOf(_board.active!)!;
     final head = path.last;
     // A little stickiness around the current cell avoids jitter on borders.
@@ -269,6 +311,13 @@ class _BoardViewState extends State<BoardView>
   void _up(PointerEvent e) {
     if (e.pointer != _pointer) return;
     _pointer = null;
+    final tap = _pendingTap;
+    if (tap != null) {
+      _pendingTap = null;
+      if (e is PointerUpEvent) _flip(tap);
+      setState(() {});
+      return;
+    }
     final colour = _board.active;
     _cuts += _board.end();
     if (colour != null && !_board.isConnected(colour)) {
@@ -301,6 +350,18 @@ class _BoardViewState extends State<BoardView>
     }
   }
 
+  void _flip(int cell) {
+    if (!_board.flip(cell)) return;
+    _flips[cell] = _now;
+    _started = true;
+    _lastTouch = _now;
+    widget.haptics.tick();
+    widget.sfx.pluck(7);
+    widget.onFlip?.call();
+    _afterChange();
+    _kick();
+  }
+
   // ---------------------------------------------------------- commands --
 
   bool _hint() {
@@ -310,7 +371,16 @@ class _BoardViewState extends State<BoardView>
       _pointer = null;
     }
     final colour = _board.hintColour();
-    if (colour == null) return false;
+    if (colour == null) {
+      // Every thread is right: the hint fixes a crossing woven the wrong way.
+      final cell = _board.wrongWeave();
+      if (cell == null) return false;
+      _hints++;
+      widget.sfx.hint();
+      _flip(cell);
+      setState(() {});
+      return true;
+    }
     final path = widget.puzzle.knotOf(colour).path;
     _cuts += _board.lay(colour, path);
     _hints++;
@@ -349,7 +419,7 @@ class _BoardViewState extends State<BoardView>
         for (final k in p.knots)
           if (k.spool != null) ...[k.a, k.b],
       },
-      'beads' || 'eyelets' || 'stitches' => p.features.keys.toSet(),
+      'beads' || 'eyelets' || 'stitches' || 'weave' => p.features.keys.toSet(),
       _ => const {},
     };
   }
@@ -371,7 +441,20 @@ class _BoardViewState extends State<BoardView>
       tail = 1 - Curves.easeOutBack.transform(t).clamp(0.0, 1.2);
       tail = tail.clamp(0.0, 1.0);
     }
-    final ghostT = _ghostOn
+    // On woven levels, a finger shows the tap when a crossing is woven the
+    // wrong way and the player pauses: soon on teaching levels, later on others.
+    int? ghostTap;
+    if (p.freeWeave && !_cleared && _pointer == null && _growColour == null) {
+      final wait = p.teachColour != null ? 1200 : 6000;
+      if (_now - _lastTouch > Duration(milliseconds: wait)) {
+        ghostTap = _board.wrongWeave();
+      }
+    }
+    final showTrail = _ghostOn && ghostTap == null;
+    final ghostT = ghostTap != null
+        ? (_now.inMicroseconds % _tapLoop.inMicroseconds) /
+              _tapLoop.inMicroseconds
+        : showTrail
         ? ((_now - _ghostStart).inMicroseconds % _ghostLoop.inMicroseconds) /
               _ghostLoop.inMicroseconds
         : 0.0;
@@ -394,9 +477,14 @@ class _BoardViewState extends State<BoardView>
       tighten: _tightenStart == null
           ? (_cleared ? 1 : 0)
           : _t(_tightenStart, _tighten),
-      ghostPath: _ghostOn ? p.knotOf(p.teachColour!).path : null,
+      ghostPath: showTrail ? p.knotOf(p.teachColour!).path : null,
       ghostT: ghostT,
       time: _now.inMicroseconds / 1e6,
+      back: widget.back,
+      flipPulse: {
+        for (final e in _flips.entries) e.key: _t(e.value, _flipRipple),
+      },
+      ghostTap: ghostTap,
     );
     return Listener(
       behavior: HitTestBehavior.opaque,

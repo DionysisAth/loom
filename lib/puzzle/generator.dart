@@ -22,7 +22,19 @@ class GenSpec {
     this.colours,
     this.minLength = 3,
     this.fixedCrossings = const [],
+    this.freeWeave = false,
+    this.patch,
+    this.weaveSides = const {WeaveSide.front},
   });
+
+  /// The player chooses over/under at crossings (weave targets need this).
+  final bool freeWeave;
+
+  /// A woven patch: a block of crossings this many cells across and down.
+  final (int, int)? patch;
+
+  /// Which kinds of weave target the generator may use.
+  final Set<WeaveSide> weaveSides;
 
   /// Crossings at fixed (x, y) places, used by showpieces.
   final List<(int, int)> fixedCrossings;
@@ -61,6 +73,9 @@ class GenSpec {
 
   final int minLength;
 }
+
+/// Which side of the cloth a weave target describes.
+enum WeaveSide { front, back, both }
 
 /// Palette order for ordinary levels: high contrast first.
 const List<int> defaultColours = [0, 1, 2, 3, 4, 5, 7, 6, 9, 8];
@@ -103,6 +118,9 @@ class Generator {
       features: const {},
       knots: const [],
     );
+    if (spec.patch != null && !_placePatch(base, kinds, region, spec.patch!)) {
+      return _fail('patch');
+    }
     if (!_placeCrossings(base, kinds, region, spec.crossings)) {
       return _fail('crossings');
     }
@@ -144,9 +162,69 @@ class Generator {
       kinds: kinds,
       features: const {},
       knots: knots,
+      freeWeave: spec.freeWeave,
+      solutionOver: spec.freeWeave
+          ? {
+              for (var c = 0; c < w * h; c++)
+                if (kinds[c] == CellKind.crossing) c: rng.nextInt(2),
+            }
+          : const {},
     );
-    if (Weave(puzzle, puzzle.solution).errors.isNotEmpty) return _fail('weave');
-    return _makeUnique(puzzle, spec);
+    if (_weave(puzzle, puzzle.solution).errors.isNotEmpty) {
+      return _fail('weave');
+    }
+    final made = _makeUnique(puzzle, spec);
+    if (made == null || !made.freeWeave) return made;
+    // A woven level should need at least one flip from where the
+    // crossings start.
+    final needsFlip = made.features.entries.any(
+      (e) =>
+          e.value.kind == FeatureKind.weave &&
+          made.solutionOver[e.key] != made.overAxis(e.key),
+    );
+    return needsFlip ? made : _fail('no flip needed');
+  }
+
+  /// The weave of [threads] with [p]'s solution over/under choices.
+  static Weave _weave(Puzzle p, Map<int, List<int>> threads) =>
+      Weave(p, threads, over: p.solutionOver);
+
+  /// Places a block of touching crossings: a small woven patch.
+  bool _placePatch(
+    Puzzle p,
+    List<CellKind> kinds,
+    List<String> region,
+    (int, int) size,
+  ) {
+    final (pw, ph) = size;
+    final spots = <(int, int)>[];
+    for (var y0 = 1; y0 + ph <= p.height - 1; y0++) {
+      for (var x0 = 1; x0 + pw <= p.width - 1; x0++) {
+        final r = region[p.index(x0, y0)];
+        var ok = true;
+        // The block and a ring of fabric around it, all in one region.
+        for (var y = y0 - 1; y <= y0 + ph && ok; y++) {
+          for (var x = x0 - 1; x <= x0 + pw && ok; x++) {
+            final corner =
+                (x == x0 - 1 || x == x0 + pw) && (y == y0 - 1 || y == y0 + ph);
+            if (corner) continue;
+            final c = p.index(x, y);
+            if (p.isHole(c) || region[c] != r || kinds[c] != CellKind.normal) {
+              ok = false;
+            }
+          }
+        }
+        if (ok) spots.add((x0, y0));
+      }
+    }
+    if (spots.isEmpty) return false;
+    final (x0, y0) = spots[rng.nextInt(spots.length)];
+    for (var y = y0; y < y0 + ph; y++) {
+      for (var x = x0; x < x0 + pw; x++) {
+        kinds[p.index(x, y)] = CellKind.crossing;
+      }
+    }
+    return true;
   }
 
   bool _placeCrossings(
@@ -192,22 +270,29 @@ class Generator {
     final taken = List.filled(n, false);
     final paths = <List<int>>[];
 
-    // Each crossing starts as two short straight threads through it.
-    for (var c = 0; c < n; c++) {
-      if (!p.isCrossing(c)) continue;
-      for (final dir in const [0, 1]) {
+    // Each straight run of crossings starts as a short thread across it, and
+    // another down it, from the fabric on one side to the fabric on the other.
+    for (final dir in const [0, 1]) {
+      for (var c = 0; c < n; c++) {
+        if (!p.isCrossing(c)) continue;
         final before = p.neighbour(c, oppositeDir(dir));
-        final after = p.neighbour(c, dir);
+        if (before >= 0 && p.isCrossing(before)) continue; // not a run start
+        final run = [c];
+        while (true) {
+          final next = p.neighbour(run.last, dir);
+          if (next < 0 || !p.isCrossing(next)) break;
+          run.add(next);
+        }
+        final after = p.neighbour(run.last, dir);
         if (before < 0 || after < 0 || taken[before] || taken[after]) {
           return _fail('cover: crossing blocked');
         }
-        if (p.isCrossing(before) || p.isCrossing(after)) {
-          return _fail('cover: crossings touch');
-        }
         taken[before] = taken[after] = true;
-        paths.add([before, c, after]);
+        paths.add([before, ...run, after]);
       }
-      taken[c] = true;
+    }
+    for (var c = 0; c < n; c++) {
+      if (p.isCrossing(c)) taken[c] = true;
     }
 
     bool open(int from, int to) =>
@@ -387,6 +472,7 @@ class Generator {
   }
 
   Puzzle? _makeUnique(Puzzle puzzle, GenSpec spec) {
+    _weaveSides = spec.weaveSides.toList();
     final intended = puzzle.solution;
     var current = puzzle;
     final wantsClues = spec.clueKinds.isNotEmpty || spec.spools;
@@ -416,7 +502,7 @@ class Generator {
     if (!_sameSolution(last.solutions.first, current.solution)) {
       throw StateError('solver disagrees with the generated solution');
     }
-    if (!Weave(current, current.solution).isCleared) return null;
+    if (!_weave(current, current.solution).isCleared) return null;
     return current.copyWith(difficulty: difficultyOf(current, last));
   }
 
@@ -442,7 +528,7 @@ class Generator {
     Map<int, List<int>> alt,
     GenSpec spec,
   ) {
-    final want = Weave(p, intended);
+    final want = _weave(p, intended);
     final other = Weave(p, alt);
     final options = <Puzzle>[];
     for (var c = 0; c < p.cellCount; c++) {
@@ -451,6 +537,13 @@ class Generator {
         final f = _clueFor(kind, c, p, want);
         if (f == null) continue;
         final trial = p.copyWith(features: {...p.features, c: f});
+        if (kind == FeatureKind.weave && p.freeWeave) {
+          // The other solution is ruled out if no over/under choice there
+          // can meet the target.
+          final h = other.occupant(c, axisH), v = other.occupant(c, axisV);
+          if (!WeaveRule.canMeet(f, h, v)) options.add(trial);
+          continue;
+        }
         final rule = rules.firstWhere((r) => r.id == kind.name);
         if (rule.violations(Weave(trial, alt)).isNotEmpty) options.add(trial);
       }
@@ -498,8 +591,21 @@ class Generator {
         return Feature(FeatureKind.eyelet, want.occupant(cell));
       case FeatureKind.stitch:
         return Feature(FeatureKind.stitch, want.topColour(cell));
+      case FeatureKind.weave:
+        if (!crossing || !p.freeWeave) return null;
+        final sides = _weaveSides;
+        final side = sides[rng.nextInt(sides.length)];
+        final top = want.topColour(cell), bottom = want.bottomColour(cell);
+        return switch (side) {
+          WeaveSide.front => Feature(FeatureKind.weave, top),
+          WeaveSide.back => Feature(FeatureKind.weave, null, bottom),
+          WeaveSide.both => Feature(FeatureKind.weave, top, bottom),
+        };
     }
   }
+
+  /// Sides allowed for weave targets in the level being made.
+  List<WeaveSide> _weaveSides = const [WeaveSide.front];
 
   Puzzle _minimise(Puzzle p, GenSpec spec) {
     var current = p;
@@ -540,7 +646,7 @@ class Generator {
   /// Adds redundant clues until each kind reaches its minimum.
   Puzzle _topUp(Puzzle p, GenSpec spec) {
     var current = p;
-    final want = Weave(p, p.solution);
+    final want = _weave(p, p.solution);
     for (final entry in spec.minClues.entries) {
       var have = current.features.values
           .where((f) => f.kind == entry.key)

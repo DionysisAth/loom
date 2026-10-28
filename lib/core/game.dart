@@ -78,6 +78,14 @@ class Game extends ChangeNotifier {
     await store.save(_data);
   }
 
+  /// Test builds only: make [level] the next level to play. The tapestry
+  /// keeps what was already cleared.
+  Future<void> jumpTo(int level) async {
+    _data = _data.copyWith(level: level.clamp(1, levels.total));
+    notifyListeners();
+    await store.save(_data);
+  }
+
   Future<void> resetProgress() async {
     _data = SaveData(settings: settings);
     notifyListeners();

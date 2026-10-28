@@ -18,22 +18,37 @@ enum FeatureKind {
 
   /// The thread on top must be [Feature.colour].
   stitch,
+
+  /// A weave target on a crossing in a free-weave level: the front of the
+  /// cloth must show [Feature.colour] and/or the back must show
+  /// [Feature.back]. The player chooses which thread goes over.
+  weave,
 }
 
 class Feature {
-  const Feature(this.kind, [this.colour]);
+  const Feature(this.kind, [this.colour, this.back]);
   final FeatureKind kind;
   final int? colour;
 
+  /// For [FeatureKind.weave]: the colour the back of the cloth must show.
+  final int? back;
+
   @override
   bool operator ==(Object other) =>
-      other is Feature && other.kind == kind && other.colour == colour;
+      other is Feature &&
+      other.kind == kind &&
+      other.colour == colour &&
+      other.back == back;
 
   @override
-  int get hashCode => Object.hash(kind, colour);
+  int get hashCode => Object.hash(kind, colour, back);
 
   @override
-  String toString() => colour == null ? kind.name : '${kind.name}($colour)';
+  String toString() => switch ((colour, back)) {
+    (null, null) => kind.name,
+    (final c, null) => '${kind.name}($c)',
+    (final c, final b) => '${kind.name}($c/$b)',
+  };
 }
 
 /// Directions: 0 right, 1 down, 2 left, 3 up. Even directions are horizontal.
@@ -78,6 +93,8 @@ class Puzzle {
     this.difficulty = 0,
     this.teachColour,
     this.showpiece,
+    this.freeWeave = false,
+    this.solutionOver = const {},
   }) {
     _knotAt = List.filled(width * height, -1);
     for (final k in knots) {
@@ -102,6 +119,13 @@ class Puzzle {
 
   /// Name of the picture the finished threads form, for showpiece levels.
   final String? showpiece;
+
+  /// In a free-weave level the player chooses, at every crossing, which
+  /// thread goes over. Otherwise the fixed weave of [overAxis] applies.
+  final bool freeWeave;
+
+  /// The axis on top at each crossing in the stored solution (free weave).
+  final Map<int, int> solutionOver;
 
   late final List<int> _knotAt;
 
@@ -140,7 +164,8 @@ class Puzzle {
     return -1;
   }
 
-  /// The weave: on even cells the horizontal thread is on top.
+  /// The fixed weave: on even cells the horizontal thread is on top. In a
+  /// free-weave level this is only where each crossing starts.
   bool horizontalOnTop(int cell) => (xOf(cell) + yOf(cell)).isEven;
   int overAxis(int cell) => horizontalOnTop(cell) ? axisH : axisV;
 
@@ -190,12 +215,20 @@ class Puzzle {
     List<int> xy(int c) => [xOf(c), yOf(c)];
     final eyelets = <List<int>>[];
     final stitches = <List<int>>[];
+    final weaves = <List<int>>[];
     final sortedCells = features.keys.toList()..sort();
     for (final c in sortedCells) {
       final f = features[c]!;
       if (f.kind == FeatureKind.eyelet) eyelets.add([...xy(c), f.colour!]);
       if (f.kind == FeatureKind.stitch) stitches.add([...xy(c), f.colour!]);
+      if (f.kind == FeatureKind.weave) {
+        weaves.add([...xy(c), f.colour ?? -1, f.back ?? -1]);
+      }
     }
+    final overs = [
+      for (final c in solutionOver.keys.toList()..sort())
+        [...xy(c), solutionOver[c]!],
+    ];
     return {
       'id': id,
       'chapter': chapter,
@@ -209,6 +242,9 @@ class Puzzle {
       'grid': rows,
       if (eyelets.isNotEmpty) 'eyelets': eyelets,
       if (stitches.isNotEmpty) 'stitches': stitches,
+      if (freeWeave) 'weave': 'free',
+      if (weaves.isNotEmpty) 'weaves': weaves,
+      if (overs.isNotEmpty) 'over': overs,
       'knots': [
         for (final k in knots)
           {
@@ -253,6 +289,18 @@ class Puzzle {
       final l = (e as List).cast<int>();
       features[l[1] * w + l[0]] = Feature(FeatureKind.stitch, l[2]);
     }
+    for (final e in (j['weaves'] as List? ?? const [])) {
+      final l = (e as List).cast<int>();
+      features[l[1] * w + l[0]] = Feature(
+        FeatureKind.weave,
+        l[2] < 0 ? null : l[2],
+        l[3] < 0 ? null : l[3],
+      );
+    }
+    final solutionOver = <int, int>{
+      for (final e in (j['over'] as List? ?? const []))
+        ((e as List)[1] as int) * w + (e[0] as int): e[2] as int,
+    };
     final knots = <Knot>[];
     for (final k in (j['knots'] as List).cast<Map<String, Object?>>()) {
       final flat = (k['path'] as List).cast<int>();
@@ -271,6 +319,8 @@ class Puzzle {
       difficulty: (j['difficulty'] as num? ?? 0).toDouble(),
       teachColour: j['teach'] as int?,
       showpiece: j['showpiece'] as String?,
+      freeWeave: j['weave'] == 'free',
+      solutionOver: solutionOver,
       width: w,
       height: h,
       kinds: kinds,
@@ -291,6 +341,8 @@ class Puzzle {
     double? difficulty,
     int? teachColour,
     String? showpiece,
+    bool? freeWeave,
+    Map<int, int>? solutionOver,
   }) => Puzzle(
     id: id ?? this.id,
     chapter: chapter ?? this.chapter,
@@ -299,6 +351,8 @@ class Puzzle {
     difficulty: difficulty ?? this.difficulty,
     teachColour: teachColour ?? this.teachColour,
     showpiece: showpiece ?? this.showpiece,
+    freeWeave: freeWeave ?? this.freeWeave,
+    solutionOver: solutionOver ?? this.solutionOver,
     width: width,
     height: height,
     kinds: kinds,

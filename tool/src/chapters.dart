@@ -266,6 +266,30 @@ GenSpec _g(
   minSpools: minSpools,
 );
 
+/// A free-weave level: the player picks over/under at every crossing, and
+/// weave targets say what the front and/or back must show.
+GenSpec _w(
+  int w,
+  int h,
+  int minT,
+  int maxT, {
+  int crossings = 0,
+  (int, int)? patch,
+  Set<WeaveSide> sides = const {WeaveSide.front},
+  int minTargets = 0,
+}) => GenSpec(
+  width: w,
+  height: h,
+  minThreads: minT,
+  maxThreads: maxT,
+  crossings: crossings,
+  patch: patch,
+  freeWeave: true,
+  weaveSides: sides,
+  clueKinds: const {FeatureKind.weave},
+  minClues: {FeatureKind.weave: minTargets},
+);
+
 const _bp = {FeatureKind.bead, FeatureKind.pin};
 const _eye = {FeatureKind.eyelet};
 const _st = {FeatureKind.stitch};
@@ -319,7 +343,37 @@ final List<Chapter> chapters = [
       showpiece: 'fish',
     ),
   ]),
-  Chapter(3, 'shapes', [
+  // Two-sided cloth: tap a crossing to choose which thread goes over; the
+  // front and the back of the hoop each have to show the right colours.
+  Chapter(3, 'weave', [
+    Slot(Role.teach, _w(5, 5, 3, 4, crossings: 1, minTargets: 1)),
+    Slot(
+      Role.teach,
+      _w(5, 5, 3, 4, crossings: 2, sides: {WeaveSide.back}, minTargets: 1),
+    ),
+    Slot(
+      Role.practice,
+      _w(6, 6, 4, 5, patch: (2, 1), sides: {WeaveSide.front, WeaveSide.back}),
+    ),
+    Slot(
+      Role.practice,
+      _w(
+        6,
+        6,
+        4,
+        5,
+        patch: (2, 2),
+        sides: {WeaveSide.front, WeaveSide.back, WeaveSide.both},
+      ),
+    ),
+    Slot(Role.breather, _w(5, 5, 3, 4, crossings: 2)),
+    Slot(
+      Role.showpiece,
+      _w(7, 7, 5, 7, patch: (3, 3), sides: {WeaveSide.both}, minTargets: 9),
+      showpiece: 'basket',
+    ),
+  ]),
+  Chapter(4, 'shapes', [
     Slot(Role.teach, _g(5, 5, 3, 4, shape: round5)),
     Slot(Role.teach, _g(7, 6, 4, 5, shape: heart7x6)),
     Slot(Role.practice, _g(6, 7, 4, 5, shape: mitten6x7)),
@@ -341,7 +395,7 @@ final List<Chapter> chapters = [
       showpiece: 'flower',
     ),
   ]),
-  Chapter(4, 'beads', [
+  Chapter(5, 'beads', [
     Slot(
       Role.teach,
       _g(
@@ -377,7 +431,7 @@ final List<Chapter> chapters = [
       showpiece: 'tree',
     ),
   ]),
-  Chapter(5, 'eyelets', [
+  Chapter(6, 'eyelets', [
     Slot(
       Role.teach,
       _g(6, 6, 4, 5, clues: _eye, minClues: {FeatureKind.eyelet: 1}),
@@ -406,7 +460,7 @@ final List<Chapter> chapters = [
       showpiece: 'boat',
     ),
   ]),
-  Chapter(6, 'stitches', [
+  Chapter(7, 'stitches', [
     Slot(
       Role.teach,
       _g(
@@ -452,7 +506,7 @@ final List<Chapter> chapters = [
       showpiece: 'butterfly',
     ),
   ]),
-  Chapter(7, 'spools', [
+  Chapter(8, 'spools', [
     Slot(Role.teach, _g(6, 6, 4, 5, spools: true, minSpools: 1)),
     Slot(Role.teach, _g(6, 6, 4, 5, spools: true, minSpools: 2)),
     Slot(Role.practice, _g(7, 7, 5, 6, spools: true)),
@@ -478,7 +532,7 @@ final List<Chapter> chapters = [
       showpiece: 'house',
     ),
   ]),
-  Chapter(8, 'mix', [
+  Chapter(9, 'mix', [
     Slot(Role.practice, _g(8, 8, 5, 7, crossings: 2, clues: _st, spools: true)),
     Slot(Role.practice, _g(8, 8, 5, 7, shape: bell8, clues: {..._bp, ..._eye})),
     Slot(

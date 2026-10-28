@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../board/icons.dart';
 import '../core/game.dart';
 import '../core/palette.dart';
 import 'common.dart';
@@ -84,6 +85,8 @@ class SettingsScreen extends StatelessWidget {
                   style: TextStyle(color: Cloth.warn),
                 ),
               ),
+              const SizedBox(height: 16),
+              const _ChapterJump(),
               const Spacer(),
               const Padding(
                 padding: EdgeInsets.all(16),
@@ -121,4 +124,62 @@ class _Toggle extends StatelessWidget {
     activeThumbColor: Cloth.wood,
     onChanged: onChanged,
   );
+}
+
+/// Test builds: start any chapter, to try a new mechanic without replaying
+/// everything before it. Not part of the finished game (no level select).
+class _ChapterJump extends StatelessWidget {
+  const _ChapterJump();
+
+  @override
+  Widget build(BuildContext context) {
+    final game = GameScope.of(context);
+    return Column(
+      children: [
+        const Text(
+          'Test build: jump to a chapter',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Cloth.inkSoft,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final ch in game.levels.chapters)
+              GestureDetector(
+                key: Key('jump-${ch.number}'),
+                onTap: () async {
+                  await game.jumpTo(ch.first);
+                  if (!context.mounted) return;
+                  Navigator.pop(context);
+                },
+                child: Column(
+                  children: [
+                    MechanicIcon(ch.mechanic, size: 46),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${ch.number}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: ch.first == game.level
+                            ? Cloth.ink
+                            : Cloth.inkSoft,
+                        fontWeight: ch.first == game.level
+                            ? FontWeight.w800
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
 }

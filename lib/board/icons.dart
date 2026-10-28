@@ -65,6 +65,25 @@ class _MechanicPainter extends CustomPainter {
       case 'crossings':
         thread([const Offset(0, -1.2), const Offset(0, 1.2)], 1);
         thread([const Offset(-1.2, 0), const Offset(1.2, 0)], 0);
+      case 'weave':
+        // A little basket weave: over, under, over, under.
+        const lines = [-0.55, 0.55];
+        for (final y in lines) {
+          thread([Offset(-1.25, y), Offset(1.25, y)], 0);
+        }
+        for (final x in lines) {
+          thread([Offset(x, -1.25), Offset(x, 1.25)], 1);
+        }
+        for (final x in lines) {
+          for (final y in lines) {
+            final horizontalOver = (x < 0) == (y < 0);
+            if (horizontalOver) {
+              thread([Offset(x - 0.45, y), Offset(x + 0.45, y)], 0);
+            } else {
+              thread([Offset(x, y - 0.45), Offset(x, y + 0.45)], 1);
+            }
+          }
+        }
       case 'shapes':
         final heart = Path()
           ..moveTo(c.dx, c.dy + s * 0.28)

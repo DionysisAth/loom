@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:loom/app.dart';
+import 'package:loom/board/board_view.dart';
 import 'package:loom/board/layout.dart';
 import 'package:loom/core/analytics.dart';
 import 'package:loom/core/audio.dart';
@@ -9,6 +10,7 @@ import 'package:loom/core/game.dart';
 import 'package:loom/core/haptics.dart';
 import 'package:loom/core/levels.dart';
 import 'package:loom/core/save.dart';
+import 'package:loom/puzzle/puzzle.dart';
 
 Game testGame({SaveData data = const SaveData()}) => Game(
   store: MemorySaveStore(data),
@@ -122,5 +124,57 @@ void main() {
     await tester.tap(find.byKey(const Key('tapestry')));
     await settle(tester);
     expect(find.textContaining('Tapestry'), findsOneWidget);
+  });
+
+  testWidgets('weave chapter: threads alone do not clear it, taps flip it', (
+    tester,
+  ) async {
+    final game = testGame();
+    await tester.pumpWidget(LoomApp(game: game));
+    await settle(tester);
+    final weave = game.levels.chapters.firstWhere((c) => c.mechanic == 'weave');
+    await game.jumpTo(weave.first);
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('continue')));
+    await settle(tester);
+    final id = weave.first;
+    final puzzle = game.levels.level(id);
+    expect(puzzle.freeWeave, isTrue);
+
+    await solveByDragging(tester, game, id);
+    await settle(tester, 30);
+    expect(game.level, id, reason: 'the weave is still wrong');
+
+    // Tap each target crossing that starts the wrong way round.
+    final rect = tester.getRect(find.byKey(const Key('board')));
+    final layout = BoardLayout(puzzle, rect.size);
+    for (final e in puzzle.features.entries) {
+      if (e.value.kind != FeatureKind.weave) continue;
+      if (puzzle.solutionOver[e.key] == puzzle.overAxis(e.key)) continue;
+      await tester.tapAt(rect.topLeft + layout.centre(e.key));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await settle(tester, 60);
+    expect(game.level, id + 1);
+  });
+
+  testWidgets('the hoop turns over to show the back', (tester) async {
+    final game = testGame();
+    await tester.pumpWidget(LoomApp(game: game));
+    await settle(tester);
+    final weave = game.levels.chapters.firstWhere((c) => c.mechanic == 'weave');
+    await game.jumpTo(weave.first + 1);
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('continue')));
+    await settle(tester);
+    BoardView board() =>
+        tester.widget<BoardView>(find.byKey(const Key('board')));
+    expect(board().back, isFalse);
+    await tester.tap(find.byKey(const Key('turn')));
+    await settle(tester, 20);
+    expect(board().back, isTrue);
+    await tester.tap(find.byKey(const Key('turn')));
+    await settle(tester, 20);
+    expect(board().back, isFalse);
   });
 }

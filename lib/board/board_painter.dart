@@ -26,6 +26,9 @@ class BoardScene {
     this.ghostT = 0,
     this.time = 0,
     this.showViolations = true,
+    this.back = false,
+    this.flipPulse = const {},
+    this.ghostTap,
   });
 
   final Puzzle puzzle;
@@ -61,6 +64,15 @@ class BoardScene {
   /// Seconds, for slow ambient pulses.
   final double time;
   final bool showViolations;
+
+  /// Seen from the back of the cloth: mirrored, under-threads on top.
+  final bool back;
+
+  /// Crossing cell -> 0..1, a ripple after the player flipped it.
+  final Map<int, double> flipPulse;
+
+  /// The teaching finger tapping this crossing (uses [ghostT] for timing).
+  final int? ghostTap;
 }
 
 class BoardPainter extends CustomPainter {
@@ -73,7 +85,7 @@ class BoardPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    _l = BoardLayout(_p, size);
+    _l = BoardLayout(_p, size, mirrored: scene.back);
     _hoopShadow(canvas);
     _fabric(canvas);
     _hoop(canvas);
@@ -97,11 +109,26 @@ class BoardPainter extends CustomPainter {
           _eyelet(canvas, c, f.colour!);
         case FeatureKind.stitch:
           _stitchCorner(canvas, c, f.colour!);
+        case FeatureKind.weave:
+          break; // drawn with the crossings
       }
     }
+    for (final e in _p.features.entries) {
+      if (e.value.kind == FeatureKind.weave) {
+        _weaveTarget(canvas, e.key, e.value);
+      }
+    }
+    _flipPulses(canvas);
     _knots(canvas);
     if (scene.showViolations) _violations(canvas);
     _ghostFinger(canvas);
+    _ghostTapFinger(canvas);
+  }
+
+  /// The axis whose thread is seen on top from the side we are looking at.
+  int _visibleOver(int c) {
+    final over = scene.weave.overAxisAt(c);
+    return scene.back ? 1 - over : over;
   }
 
   // ------------------------------------------------------------ the hoop --
@@ -134,7 +161,10 @@ class BoardPainter extends CustomPainter {
     final shape = _fabricShape();
     canvas.save();
     canvas.clipRRect(inner);
-    canvas.drawPath(shape, Paint()..color = Cloth.fabric);
+    canvas.drawPath(
+      shape,
+      Paint()..color = scene.back ? Cloth.fabricBack : Cloth.fabric,
+    );
     // Linen weave.
     canvas.save();
     canvas.clipPath(shape);
@@ -285,7 +315,7 @@ class BoardPainter extends CustomPainter {
       Rect.fromCenter(center: o, width: w, height: len),
       Radius.circular(w / 2),
     );
-    final hOnTop = _p.horizontalOnTop(c);
+    final hOnTop = _visibleOver(c) == axisH;
     canvas.drawRRect(hOnTop ? v : h, under);
     final top = hOnTop ? h : v;
     canvas.drawRRect(
@@ -406,7 +436,7 @@ class BoardPainter extends CustomPainter {
     // At each full crossing, redraw the top thread across it.
     for (var c = 0; c < _p.cellCount; c++) {
       if (!_p.isCrossing(c) || !scene.weave.isFilled(c)) continue;
-      final axis = _p.overAxis(c);
+      final axis = _visibleOver(c);
       final colour = scene.weave.occupant(c, axis);
       if (colour < 0 || !paths.containsKey(colour)) continue;
       if (colour == scene.growColour && scene.grow < 1) continue;
@@ -425,6 +455,127 @@ class BoardPainter extends CustomPainter {
         caps: false,
       );
     }
+  }
+
+  // ------------------------------------------------------------ weaving --
+
+  /// A weave target: a solid cross-stitch in the corner for the colour this
+  /// side must show, and a small ring for the colour the other side must show.
+  void _weaveTarget(Canvas canvas, int c, Feature f) {
+    final r = _l.cellRect(c);
+    final facing = scene.back ? f.back : f.colour;
+    final other = scene.back ? f.colour : f.back;
+    final bad =
+        scene.weave.isFilled(c) &&
+        const WeaveRule().violations(scene.weave).contains(c);
+    if (facing != null) {
+      final y = yarn(facing);
+      final at = r.topLeft + Offset(_c * 0.2, _c * 0.2);
+      canvas.drawCircle(at, _c * 0.19, Paint()..color = Cloth.fabric);
+      canvas.drawCircle(
+        at,
+        _c * 0.19,
+        Paint()
+          ..color = (bad ? Cloth.warn : y.dark).withValues(alpha: 0.8)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _c * 0.025,
+      );
+      final d = _c * 0.095;
+      final paint = Paint()
+        ..color = y.color
+        ..strokeWidth = _c * 0.07
+        ..strokeCap = StrokeCap.round;
+      canvas
+        ..drawLine(at + Offset(-d, -d), at + Offset(d, d), paint)
+        ..drawLine(at + Offset(d, -d), at + Offset(-d, d), paint);
+    }
+    if (other != null) {
+      final y = yarn(other);
+      final at = r.bottomRight - Offset(_c * 0.2, _c * 0.2);
+      canvas.drawCircle(at, _c * 0.17, Paint()..color = Cloth.fabric);
+      canvas.drawCircle(
+        at,
+        _c * 0.11,
+        Paint()
+          ..color = y.color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _c * 0.05,
+      );
+      // A little turn arrow: "on the other side".
+      canvas.drawArc(
+        Rect.fromCircle(center: at, radius: _c * 0.16),
+        -pi * 0.9,
+        pi * 0.8,
+        false,
+        Paint()
+          ..color = Cloth.inkSoft.withValues(alpha: 0.7)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _c * 0.02,
+      );
+    }
+  }
+
+  void _flipPulses(Canvas canvas) {
+    for (final e in scene.flipPulse.entries) {
+      final t = e.value;
+      canvas.drawCircle(
+        _l.centre(e.key),
+        _c * (0.3 + 0.35 * t),
+        Paint()
+          ..color = Cloth.brass.withValues(alpha: 0.6 * (1 - t))
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _c * 0.06 * (1 - t) + 1,
+      );
+    }
+  }
+
+  /// The teaching finger tapping a crossing: comes in, presses, lets go.
+  void _ghostTapFinger(Canvas canvas) {
+    final c = scene.ghostTap;
+    if (c == null) return;
+    final t = scene.ghostT;
+    final pos = _l.centre(c) + Offset(_c * 0.08, _c * 0.12);
+    var alpha = 1.0, scale = 1.0;
+    if (t < 0.25) {
+      alpha = t / 0.25;
+      scale = 1.35 - 0.35 * (t / 0.25);
+    } else if (t < 0.4) {
+      scale = 1 - 0.18 * sin(pi * (t - 0.25) / 0.15);
+    } else if (t > 0.7) {
+      alpha = max(0, 1 - (t - 0.7) / 0.3);
+    }
+    if (t >= 0.3 && t < 0.7) {
+      final rt = (t - 0.3) / 0.4;
+      canvas.drawCircle(
+        _l.centre(c),
+        _c * (0.25 + 0.3 * rt),
+        Paint()
+          ..color = Cloth.ink.withValues(alpha: 0.3 * (1 - rt))
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _c * 0.04,
+      );
+    }
+    final r = _c * 0.3 * scale;
+    canvas.drawCircle(
+      pos + Offset(_c * 0.04, _c * 0.07),
+      r,
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.18 * alpha)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, _c * 0.08),
+    );
+    canvas.drawCircle(
+      pos,
+      r,
+      Paint()..color = Colors.white.withValues(alpha: 0.75 * alpha),
+    );
+    canvas.drawCircle(
+      pos,
+      r,
+      Paint()
+        ..color = Cloth.ink.withValues(alpha: 0.35 * alpha)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _c * 0.03,
+    );
   }
 
   // ---------------------------------------------------------- features --
