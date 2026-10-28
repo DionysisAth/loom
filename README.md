@@ -112,9 +112,10 @@ sink; game code only calls `Analytics.log`.
    with API 29 and 34 (opens the app, clears level 1 by dragging).
 3. **iOS**: builds for the simulator and runs the same launch test on a
    simulator.
-4. **Release** (pushes to `main`): publishes the tested APK as the `latest`
-   GitHub release (`releases/download/latest/loom.apk`; public only if the
-   repository is public).
+4. **Release**: once the Android checks pass, publishes the APK as a GitHub
+   release. Pushes to `main` update `latest`
+   (`releases/download/latest/loom.apk`); pushes to other branches update
+   `preview` (`releases/download/preview/loom.apk`).
 
 Store uploads switch on by themselves once these repository secrets exist:
 

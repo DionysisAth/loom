@@ -165,33 +165,36 @@ jobs:
           fastlane beta
 
   release:
-    name: Publish latest APK
-    needs: [android-build, android-test, ios]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: Publish APK
+    # The APK only needs the Android checks; iOS results don't hold it back.
+    needs: [android-build, android-test]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: write
     env:
       HAS_PLAY_KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+      # main publishes "latest"; any other branch publishes "preview".
+      TAG: ${{ github.ref == 'refs/heads/main' && 'latest' || 'preview' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: android
           path: dist
-      - name: Update the "latest" release
+      - name: Update the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete latest --yes --cleanup-tag || true
-          gh release create latest dist/loom.apk \
-            --title "Latest build" \
-            --notes "Built from ${GITHUB_SHA::7} (run ${{ github.run_number }}). Install loom.apk on an Android phone to test." \
+          gh release delete "$TAG" --yes --cleanup-tag || true
+          gh release create "$TAG" dist/loom.apk \
+            --title "Loom $TAG build" \
+            --notes "Built from ${GITHUB_REF_NAME} at ${GITHUB_SHA::7} (run ${{ github.run_number }}). Install loom.apk on an Android phone to test." \
             --prerelease \
             --target "$GITHUB_SHA"
       - name: Upload to Google Play internal testing
-        if: env.HAS_PLAY_KEY == 'true'
+        if: env.HAS_PLAY_KEY == 'true' && github.ref == 'refs/heads/main'
         working-directory: android
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
